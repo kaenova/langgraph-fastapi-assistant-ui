@@ -32,7 +32,7 @@ import {
   SquareIcon,
 } from "lucide-react";
 import type { FC } from "react";
-import { HitlApprovalBanner } from "./MyRuntimeProvider";
+import { HitlApprovalBanner } from "./hitl-banner";
 
 export const Thread: FC = () => {
   return (
