@@ -248,6 +248,22 @@ def generate_image(prompt: str, size: str, style: str) -> str:
 tool_generator.append(generate_image)
 
 
+@tool
+def current_weather(city: str) -> str:
+    """Checking current weather on the city
+
+    Args:
+        city: The city to check for the weather.
+
+    Returns:
+        str: Information on current citi's weather.
+    """
+    return f"{city} is sunny right now!"
+
+
+tool_generator.append(current_weather)
+
+
 print(f"✓ Tools loaded. Tools available: {[tool.name for tool in tool_generator]}")
 # List of available tools
 AVAILABLE_TOOLS = tool_generator

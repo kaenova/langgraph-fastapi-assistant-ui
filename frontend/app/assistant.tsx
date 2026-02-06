@@ -1,24 +1,20 @@
 "use client";
 
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
+import {
+  MyRuntimeProvider,
+  HitlApprovalBanner,
+} from "@/components/MyRuntimeProvider";
 
 export const Assistant = () => {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({
-      api: "/api/chat",
-    }),
-  });
-
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <div className="h-dvh">
-        <Thread />
+    <MyRuntimeProvider>
+      <div className="relative flex h-dvh flex-col">
+        <div className="flex-1 overflow-hidden">
+          <Thread />
+        </div>
+        <HitlApprovalBanner />
       </div>
-    </AssistantRuntimeProvider>
+    </MyRuntimeProvider>
   );
 };
