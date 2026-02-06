@@ -12,4 +12,5 @@ dependencies = [
     "langchain>=1.2.9",
     "langchain-openai>=1.1.7",
     "langgraph>=1.0.8",
+    "langgraph-checkpoint-cosmosdb>=0.2.5",
 ]
