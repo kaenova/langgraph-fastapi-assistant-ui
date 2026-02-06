@@ -243,7 +243,7 @@ export function HitlApprovalBanner() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[44rem] px-4 pb-2">
+    <div className="mx-auto w-full pb-2">
       <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4">
         <div className="mb-3 flex items-center gap-2 text-yellow-500">
           <AlertCircleIcon className="size-5" />

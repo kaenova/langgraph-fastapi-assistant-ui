@@ -1,10 +1,7 @@
 "use client";
 
+import { MyRuntimeProvider } from "@/components/assistant-ui/MyRuntimeProvider";
 import { Thread } from "@/components/assistant-ui/thread";
-import {
-  MyRuntimeProvider,
-  HitlApprovalBanner,
-} from "@/components/MyRuntimeProvider";
 
 export const Assistant = () => {
   return (
@@ -13,7 +10,6 @@ export const Assistant = () => {
         <div className="flex-1 overflow-hidden">
           <Thread />
         </div>
-        <HitlApprovalBanner />
       </div>
     </MyRuntimeProvider>
   );
