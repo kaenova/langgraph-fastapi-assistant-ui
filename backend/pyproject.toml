@@ -1,0 +1,15 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "azure-cosmos>=4.14.6",
+    "azure-storage-blob>=12.28.0",
+    "fastapi[standard]>=0.128.2",
+    "kaenova-prompty>=20251102.15.9",
+    "langchain>=1.2.9",
+    "langchain-openai>=1.1.7",
+    "langgraph>=1.0.8",
+]
