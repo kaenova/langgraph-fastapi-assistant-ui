@@ -5,7 +5,3 @@ Supported Feature:
 - Text Streaming
 - Tool Calling
 - Human in the loop, tools approval.
-
-# Todo
-
-- [ ] Check on the MyRuntimeProvider if it's possible to continue the Human In The Loop Streaming without any sending new message?

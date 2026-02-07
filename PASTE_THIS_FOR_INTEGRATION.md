@@ -1,6 +1,6 @@
-# LangGraph + Assistant UI HITL Integration (PoC → Production Guide)
+# LangGraph + Assistant UI HITL Integration Guide
 
-This document explains how to integrate the LangGraph backend (FastAPI + SSE) with Assistant UI (Next.js) using the PoC in this repo as a reference. It covers streaming, tool calls, human-in-the-loop (HITL) approvals, and tool result rendering.
+This document explains how to integrate a LangGraph backend (FastAPI + SSE) with Assistant UI (Next.js). It covers streaming, tool calls, human-in-the-loop (HITL) approvals, and tool result rendering.
 
 Use this as a copy‑paste checklist for other projects.
 
@@ -43,12 +43,9 @@ Notes:
 - `tool_result.content` should contain the **user‑visible result string**. Avoid dumping `ToolMessage` stringified objects. If the tool returns a `ToolMessage`, extract `output.content`.
 - Always send `tool_call_id` to map results to the correct tool UI card.
 
-### 1.4 Reference implementation (this repo)
+### 1.4 Reference implementation (portable)
 
-Backend implementation lives here:
-
-- `backend/routes/chat.py`
-- `backend/agent/graph.py`
+This guide is **self-contained** and assumes the reader does **not** have access to the original codebase. All references below are generic paths you can adapt to your project structure.
 
 Key parts:
 
@@ -66,9 +63,7 @@ A typical flow:
 4. Frontend approves/rejects, sends `/feedback`.
 5. Graph resumes and runs only approved tool calls.
 
-See:
-
-- `backend/agent/graph.py`
+This applies to any LangGraph-based graph definition that uses tool calls.
 
 ---
 
@@ -76,7 +71,7 @@ See:
 
 ### 2.1 Runtime adapter overview
 
-Assistant UI uses a `ChatModelAdapter` to control how model runs are executed. This PoC implements a custom adapter that:
+Assistant UI uses a `ChatModelAdapter` to control how model runs are executed. Most starter templates do **not** include a custom runtime provider, so you must create one (e.g., `RuntimeProvider.tsx`) that wraps `useLocalRuntime` and `AssistantRuntimeProvider` and implements a `ChatModelAdapter` that talks to your SSE backend. This implementation uses a custom adapter that:
 
 - Maps Assistant UI messages → LangGraph message format.
 - Sends `POST /stream` or `POST /feedback` with `thread_id`.
@@ -85,7 +80,7 @@ Assistant UI uses a `ChatModelAdapter` to control how model runs are executed. T
 
 Reference file:
 
-- `frontend/components/assistant-ui/MyRuntimeProvider.tsx`
+- Your runtime provider module (the component that wires `useLocalRuntime` + `AssistantRuntimeProvider` and contains the SSE adapter)
 
 ### 2.2 Critical adapter behavior
 
@@ -101,11 +96,11 @@ This stops the stream and tells Assistant UI to wait for user approval.
 
 ### 2.3 UI: inline HITL controls
 
-HITL approval controls are rendered in the tool card (`ToolFallback`), not in a separate banner. This makes the approval context visible next to the tool arguments.
+HITL approval controls are rendered in the tool-call card component, not in a separate banner. This makes the approval context visible next to the tool arguments.
 
 Reference file:
 
-- `frontend/components/assistant-ui/tool-fallback.tsx`
+- Your tool UI component (the tool-call card renderer)
 
 Behavior:
 
@@ -120,7 +115,7 @@ Tool result rendering uses Assistant UI’s native tool card behavior:
 - The adapter emits `tool_result` SSE events.
 - The tool card receives and displays the result.
 
-In this PoC, the tool card also normalizes any raw tool result string to show only **content** (if the backend still returns `ToolMessage`‑like strings).
+The tool card also normalizes any raw tool result string to show only **content** (if the backend still returns `ToolMessage`‑like strings).
 
 ---
 
@@ -155,31 +150,16 @@ In this PoC, the tool card also normalizes any raw tool result string to show on
 
 ---
 
-## 5) Reference Paths (this repo)
+## 5) What to change per project
 
-Backend:
-
-- `backend/routes/chat.py`
-- `backend/agent/graph.py`
-
-Frontend:
-
-- `frontend/components/assistant-ui/MyRuntimeProvider.tsx`
-- `frontend/components/assistant-ui/tool-fallback.tsx`
-- `frontend/components/assistant-ui/thread.tsx`
-
----
-
-## 6) What to change per project
-
-- Replace the backend URLs in `frontend/components/assistant-ui/MyRuntimeProvider.tsx` with your proxy path.
-- Update dangerous tool names in `backend/agent/graph.py`.
-- Adjust tool UI styling in `tool-fallback.tsx`.
+- Replace the backend URLs in your runtime provider with your proxy path.
+- Update dangerous tool names in your graph definition.
+- Adjust tool UI styling in your tool-call card component.
 - Ensure the backend uses the same SSE event schema.
 
 ---
 
-## 7) Quick smoke test
+## 6) Quick smoke test
 
 1. Trigger a dangerous tool.
 2. Verify interrupt UI shows inline approvals in the tool card.
@@ -188,23 +168,19 @@ Frontend:
 
 ---
 
-If you want, I can provide a minimal starter template for another repo (backend + frontend) using this same integration pattern.
-
----
-
-## 8) Snippets for reference
+## 7) Snippets for reference
 
 ### Important: replace local paths
 
-When adapting this guide, replace any local absolute paths with your repo path. Use this pattern:
+When adapting this guide, replace any local absolute paths with your project path. Use this pattern:
 
 ```text
-/path/to/your/repo/**
+/path/to/your/project/**
 ```
 
-### 8.1 Backend: emit tool_result with clean content
+### 7.1 Backend: emit tool_result with clean content
 
-From `backend/routes/chat.py`:
+Example from your SSE route module:
 
 ```python
             elif ev == "on_tool_end":
@@ -247,9 +223,9 @@ From `backend/routes/chat.py`:
                     )
 ```
 
-### 8.2 Frontend: interrupt handling + tool results
+### 7.2 Frontend: interrupt handling + tool results
 
-From `frontend/components/assistant-ui/MyRuntimeProvider.tsx`:
+Example from your runtime provider:
 
 ```tsx
 if (evt.type === "tool_result") {
@@ -275,9 +251,9 @@ if (evt.type === "tool_result") {
 }
 ```
 
-### 8.3 Frontend: normalize tool result for display
+### 7.3 Frontend: normalize tool result for display
 
-From `frontend/components/assistant-ui/tool-fallback.tsx`:
+Example from your tool UI component:
 
 ```tsx
 function normalizeToolResult(result: unknown) {
@@ -300,10 +276,209 @@ function normalizeToolResult(result: unknown) {
         // ignore JSON parse errors
       }
     }
-    const match = trimmed.match(/content=(["'])(.*?)\\1/);
+    const match = trimmed.match(/content=(["'])(.*?)\1/);
     if (match && match[2]) return match[2];
     return result;
   }
   return result;
 }
+```
+
+---
+
+## 8) Minimal changes from a base implementation (diff-oriented)
+
+Below is a **minimal change map** for integrating HITL + SSE streaming into a base LangGraph + Assistant UI app. If you are integrating into a fresh project, implement **only these deltas**.
+
+### 8.1 Backend: add SSE chat routes
+
+**Add a new SSE chat routes module** (e.g., a FastAPI router).
+
+Key pieces to port:
+
+```python
+def sse(data: dict) -> str:
+    encoded = jsonable_encoder(data)
+    return f"data: {json.dumps(encoded)}\n\n"
+```
+
+```python
+elif ev == "on_chat_model_end":
+    output = event["data"]["output"]
+    tool_calls = getattr(output, "tool_calls", None)
+    if tool_calls:
+        for tc in tool_calls:
+            args = tc["args"]
+            if not isinstance(args, dict):
+                args = json.loads(args)
+            yield sse(
+                {
+                    "type": "tool_call",
+                    "id": tc["id"],
+                    "name": tc["name"],
+                    "arguments": args,
+                }
+            )
+```
+
+```python
+elif ev == "on_tool_end":
+    output = event["data"].get("output")
+    if output is not None:
+        # resolve tool_call_id and clean content (see full snippet above)
+        yield sse(
+            {
+                "type": "tool_result",
+                "id": tool_call_id,
+                "tool_call_id": tool_call_id,
+                "name": name,
+                "content": content,
+            }
+        )
+```
+
+```python
+@chat_routes.post("/stream")
+@chat_routes.post("/feedback")
+```
+
+### 8.2 Backend: register chat routes
+
+**Modify your FastAPI app entry** to register the new chat routes.
+
+```python
+from routes.chat import chat_routes
+
+app.include_router(
+    chat_routes,
+    prefix="/api/v1/chat",
+    tags=["chat"],
+)
+```
+
+### 8.3 Backend: add HITL approval node
+
+**Modify your LangGraph graph definition** to add an approval node + interrupt handling.
+
+Key diffs:
+
+```python
+from langgraph.types import interrupt
+
+DANGEROUS_TOOL_NAMES = {"current_weather"}
+```
+
+```python
+def should_continue(state: AgentState) -> Literal["approval", "tools", "end"]:
+    if any(tc.get("name") in DANGEROUS_TOOL_NAMES for tc in last_message.tool_calls):
+        return "approval"
+    return "tools"
+```
+
+```python
+def approval_node(state: AgentState) -> dict:
+    approval = interrupt({
+        "type": "tool_approval_required",
+        "tool_calls": [{"id": tc["id"], "name": tc["name"], "arguments": tc.get("args", {})} for tc in need_approval],
+    })
+    approved_ids = set(approval.get("approved_ids", []))
+    rejected_ids = set(approval.get("rejected_ids", []))
+    # filter calls + add ToolMessage for rejections
+```
+
+```python
+workflow.add_node("approval", approval_node)
+workflow.add_conditional_edges("agent", should_continue, {"approval": "approval", "tools": "tools", "end": END})
+workflow.add_edge("approval", "tools")
+```
+
+### 8.4 Frontend: add custom runtime provider
+
+**Add a custom runtime provider** that bridges Assistant UI ↔ your SSE backend.
+
+Key behavior to port:
+
+```tsx
+yield* parseSseStream(response, {
+  onInterrupt: (payload) => {
+    pendingInterruptMessageIdRef.current = unstable_assistantMessageId ?? null;
+    setPendingInterrupt(payload);
+  },
+  onToolResult: (toolCallId, result, isError) => {
+    setToolResults((prev) => ({ ...prev, [toolCallId]: { result, isError } }));
+  },
+});
+```
+
+```tsx
+if (feedback) {
+  url = "/api/be/api/v1/chat/feedback";
+  body = JSON.stringify({ thread_id: threadId, approval_data: feedback });
+} else {
+  url = "/api/be/api/v1/chat/stream";
+}
+```
+
+```tsx
+// Resume HITL without fake user message:
+runtimeRef.current.thread.startRun({ parentId });
+```
+
+### 8.5 Frontend: inline HITL UI inside tool card
+
+**Modify your tool-call card component** to add inline approvals + result normalization.
+
+Add hint on collapsed tool header:
+
+```tsx
+const hint = isInterruptTool
+  ? decision === "approved"
+    ? "Approved"
+    : decision === "rejected"
+      ? "Rejected"
+      : "Needs approval"
+  : undefined;
+```
+
+Render approvals inline:
+
+```tsx
+{isInterruptTool && (
+  <div className="flex flex-col gap-2 px-4">
+    <button onClick={() => setDecision(toolCallId, "approved")}>Approve</button>
+    <button onClick={() => setDecision(toolCallId, "rejected")}>Reject</button>
+    {isLastInterruptTool && (
+      <button onClick={submitDecisions} disabled={!allDecided}>Send Feedback</button>
+    )}
+  </div>
+)}
+```
+
+Normalize tool results so only `content` is shown:
+
+```tsx
+function normalizeToolResult(result: unknown) {
+  if (typeof result === "object" && result && "content" in result) {
+    return (result as { content?: unknown }).content;
+  }
+  if (typeof result === "string") {
+    const match = result.trim().match(/content=(["'])(.*?)\1/);
+    if (match && match[2]) return match[2];
+  }
+  return result;
+}
+```
+
+### 8.6 Frontend: use custom runtime provider
+
+**Wrap your Assistant UI entry** with the custom runtime provider.
+
+```tsx
+import { RuntimeProvider } from "@/components/RuntimeProvider";
+
+export const Assistant = () => (
+  <RuntimeProvider>
+    <Thread />
+  </RuntimeProvider>
+);
 ```
