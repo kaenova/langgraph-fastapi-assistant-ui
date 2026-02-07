@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -9,16 +9,19 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import {
+  useAui,
   useScrollLock,
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
+import { ToolResponse } from "assistant-stream";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useHitl } from "./MyRuntimeProvider";
 
 const ANIMATION_DURATION = 200;
 
@@ -93,11 +96,13 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
 function ToolFallbackTrigger({
   toolName,
   status,
+  hint,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   toolName: string;
   status?: ToolCallMessagePartStatus;
+  hint?: React.ReactNode;
 }) {
   const statusType = status?.type ?? "complete";
   const isRunning = statusType === "running";
@@ -144,6 +149,18 @@ function ToolFallbackTrigger({
           </span>
         )}
       </span>
+      {hint ? (
+        <span
+          className={cn(
+            "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
+            "text-muted-foreground",
+            "group-data-[state=open]/trigger:opacity-0",
+            "group-data-[state=open]/trigger:pointer-events-none",
+          )}
+        >
+          {hint}
+        </span>
+      ) : null}
       <ChevronDownIcon
         data-slot="tool-fallback-trigger-chevron"
         className={cn(
@@ -214,6 +231,8 @@ function ToolFallbackResult({
 }) {
   if (result === undefined) return null;
 
+  const normalizedResult = normalizeToolResult(result);
+
   return (
     <div
       data-slot="tool-fallback-result"
@@ -225,10 +244,39 @@ function ToolFallbackResult({
     >
       <p className="aui-tool-fallback-result-header font-semibold">Result:</p>
       <pre className="aui-tool-fallback-result-content whitespace-pre-wrap">
-        {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+        {typeof normalizedResult === "string"
+          ? normalizedResult
+          : JSON.stringify(normalizedResult, null, 2)}
       </pre>
     </div>
   );
+}
+
+function normalizeToolResult(result: unknown) {
+  if (result === null || result === undefined) return result;
+  if (typeof result === "object") {
+    if ("content" in result) {
+      return (result as { content?: unknown }).content;
+    }
+    return result;
+  }
+  if (typeof result === "string") {
+    const trimmed = result.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === "object" && "content" in parsed) {
+          return parsed.content;
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+    }
+    const match = trimmed.match(/content=(["'])(.*?)\1/);
+    if (match && match[2]) return match[2];
+    return result;
+  }
+  return result;
 }
 
 function ToolFallbackError({
@@ -269,6 +317,7 @@ function ToolFallbackError({
 }
 
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({
+  toolCallId,
   toolName,
   argsText,
   result,
@@ -276,18 +325,109 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 }) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
+  const aui = useAui();
+  const {
+    pendingInterrupt,
+    decisions,
+    setDecision,
+    allDecided,
+    submitDecisions,
+    toolResults,
+  } = useHitl();
+
+  const interruptToolCalls = pendingInterrupt?.tool_calls ?? [];
+  const isInterruptTool = interruptToolCalls.some((tc) => tc.id === toolCallId);
+  const decision = decisions[toolCallId];
+  const isLastInterruptTool =
+    interruptToolCalls[interruptToolCalls.length - 1]?.id === toolCallId;
+
+  const storedResult = toolResults[toolCallId];
+  useEffect(() => {
+    if (!storedResult) return;
+    if (result !== undefined) return;
+    aui
+      .part()
+      .addToolResult(
+        new ToolResponse({
+          result: storedResult.result,
+          isError: storedResult.isError ?? false,
+        }),
+      );
+  }, [storedResult, result, aui]);
+
+  const hint = isInterruptTool
+    ? decision === "approved"
+      ? "Approved"
+      : decision === "rejected"
+        ? "Rejected"
+        : "Needs approval"
+    : undefined;
 
   return (
     <ToolFallbackRoot
-      className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
+      className={cn(
+        isCancelled && "border-muted-foreground/30 bg-muted/30",
+        decision === "approved" && "border-green-500/40 bg-green-500/5",
+        decision === "rejected" && "border-red-500/40 bg-red-500/5",
+      )}
     >
-      <ToolFallbackTrigger toolName={toolName} status={status} />
+      <ToolFallbackTrigger toolName={toolName} status={status} hint={hint} />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
+        {isInterruptTool && (
+          <div className="flex flex-col gap-2 px-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setDecision(toolCallId, "approved")}
+                className={cn(
+                  "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                  decision === "approved"
+                    ? "border-green-500/50 bg-green-500/10 text-green-600"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => setDecision(toolCallId, "rejected")}
+                className={cn(
+                  "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                  decision === "rejected"
+                    ? "border-red-500/50 bg-red-500/10 text-red-600"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Reject
+              </button>
+            </div>
+            {decision === "rejected" && result === undefined && (
+              <p className="text-muted-foreground text-xs">
+                This tool call will not run.
+              </p>
+            )}
+            {isLastInterruptTool && (
+              <button
+                type="button"
+                onClick={submitDecisions}
+                disabled={!allDecided}
+                className={cn(
+                  "mt-1 rounded-md border px-3 py-1.5 text-xs font-medium",
+                  allDecided
+                    ? "border-foreground/20 bg-foreground text-background"
+                    : "border-border text-muted-foreground",
+                )}
+              >
+                Send Feedback
+              </button>
+            )}
+          </div>
+        )}
         {!isCancelled && <ToolFallbackResult result={result} />}
       </ToolFallbackContent>
     </ToolFallbackRoot>

@@ -133,13 +133,37 @@ async def langgraph_events_to_sse(
             elif ev == "on_tool_end":
                 output = event["data"].get("output")
                 if output is not None:
-                    tool_call_id = event.get("run_id", "")
+                    data = event.get("data", {})
+                    tool_call_id = ""
+                    if isinstance(data, dict):
+                        tool_call_id = data.get("tool_call_id", "") or data.get(
+                            "call_id", ""
+                        )
+                        input_data = data.get("input")
+                        if not tool_call_id and isinstance(input_data, dict):
+                            tool_call_id = input_data.get(
+                                "tool_call_id", ""
+                            ) or input_data.get("id", "")
+                    if not tool_call_id:
+                        if hasattr(output, "tool_call_id"):
+                            tool_call_id = getattr(output, "tool_call_id")
+                        elif isinstance(output, dict):
+                            tool_call_id = output.get("tool_call_id", "")
+                    if not tool_call_id:
+                        tool_call_id = event.get("run_id", "")
+
                     name = event.get("name", "")
-                    content = str(output)
+                    if hasattr(output, "content"):
+                        content = getattr(output, "content")
+                    elif isinstance(output, dict) and "content" in output:
+                        content = output.get("content")
+                    else:
+                        content = str(output)
                     yield sse(
                         {
                             "type": "tool_result",
                             "id": tool_call_id,
+                            "tool_call_id": tool_call_id,
                             "name": name,
                             "content": content,
                         }

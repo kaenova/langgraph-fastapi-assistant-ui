@@ -32,7 +32,6 @@ import {
   SquareIcon,
 } from "lucide-react";
 import type { FC } from "react";
-import { HitlApprovalBanner } from "./hitl-banner";
 
 export const Thread: FC = () => {
   return (
@@ -60,7 +59,6 @@ export const Thread: FC = () => {
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
           <ThreadScrollToBottom />
-          <HitlApprovalBanner />
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
