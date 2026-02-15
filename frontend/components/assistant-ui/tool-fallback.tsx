@@ -379,8 +379,12 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     <ToolFallbackRoot
       className={cn(
         isCancelled && "border-muted-foreground/30 bg-muted/30",
-        decision === "approved" && "border-green-500/40 bg-green-500/5",
-        decision === "rejected" && "border-red-500/40 bg-red-500/5",
+        isInterruptTool &&
+          decision === "approved" &&
+          "border-green-500/40 bg-green-500/5",
+        isInterruptTool &&
+          decision === "rejected" &&
+          "border-red-500/40 bg-red-500/5",
       )}
     >
       <ToolFallbackTrigger toolName={toolName} status={status} hint={hint} />
