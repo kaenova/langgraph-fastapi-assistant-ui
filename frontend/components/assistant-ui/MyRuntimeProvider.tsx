@@ -145,18 +145,73 @@ async function* parseSseStream(
   const decoder = new TextDecoder();
 
   let buffer = "";
-  let accumulatedText = "";
-  const toolCalls = new Map<
-    string,
-    {
-      toolCallId: string;
-      toolName: string;
-      args: ReadonlyJSONObject;
-      argsText: string;
-      result?: unknown;
-      isError?: boolean;
+
+  // Maintain an ordered list of message parts so tool calls can interleave
+  // with assistant text (agent -> tools -> agent -> tools).
+  const parts: ThreadAssistantMessagePart[] = [];
+  const toolPartIndexById = new Map<string, number>();
+
+  const appendToken = (token: string) => {
+    const lastIdx = parts.length - 1;
+    const last = parts[lastIdx];
+    if (last && last.type === ("text" as const)) {
+      parts[lastIdx] = { type: "text" as const, text: last.text + token };
+      return;
     }
-  >();
+    parts.push({ type: "text" as const, text: token });
+  };
+
+  const upsertToolCallPart = (opts: {
+    id: string;
+    name: string;
+    args: ReadonlyJSONObject;
+  }) => {
+    const existingIndex = toolPartIndexById.get(opts.id);
+    const nextPart: ThreadAssistantMessagePart = {
+      type: "tool-call" as const,
+      toolCallId: opts.id,
+      toolName: opts.name,
+      args: opts.args,
+      argsText: JSON.stringify(opts.args, null, 2),
+    };
+
+    if (existingIndex !== undefined) {
+      const existing = parts[existingIndex];
+      if (existing && existing.type === ("tool-call" as const)) {
+        parts[existingIndex] = {
+          ...existing,
+          toolName: opts.name,
+          args: opts.args,
+          argsText: JSON.stringify(opts.args, null, 2),
+        };
+        return;
+      }
+    }
+
+    parts.push(nextPart);
+    toolPartIndexById.set(opts.id, parts.length - 1);
+  };
+
+  const updateToolResult = (opts: {
+    id: string;
+    result: unknown;
+    isError: boolean;
+  }) => {
+    const existingIndex = toolPartIndexById.get(opts.id);
+    if (existingIndex === undefined) return;
+    const existing = parts[existingIndex];
+    if (!existing || existing.type !== ("tool-call" as const)) return;
+    parts[existingIndex] = {
+      ...existing,
+      result: opts.result,
+      isError: opts.isError,
+    };
+  };
+
+  const snapshot = (status?: ChatModelRunResult["status"]) => {
+    if (status) return { content: parts.slice(), status };
+    return { content: parts.slice() };
+  };
 
   try {
     while (true) {
@@ -180,75 +235,67 @@ async function* parseSseStream(
         }
 
         if (evt.type === "token" && evt.content) {
-          accumulatedText += evt.content;
+          appendToken(evt.content);
         } else if (evt.type === "tool_call" && evt.id && evt.name) {
           const args = evt.arguments ?? ({} as ReadonlyJSONObject);
-          toolCalls.set(evt.id, {
-            toolCallId: evt.id,
-            toolName: evt.name,
-            args,
-            argsText: JSON.stringify(args),
-          });
+          upsertToolCallPart({ id: evt.id, name: evt.name, args });
         } else if (evt.type === "tool_result") {
           const toolCallId = evt.tool_call_id ?? evt.id;
           if (toolCallId) {
             const result = evt.content ?? null;
             const isError = evt.is_error ?? false;
-            const existing = toolCalls.get(toolCallId);
-            if (existing) {
-              existing.result = result;
-              existing.isError = isError;
-            }
+            updateToolResult({ id: toolCallId, result, isError });
             onToolResult(toolCallId, result, isError);
           }
         } else if (evt.type === "interrupt" && evt.payload) {
           // HITL: yield pending tool calls with requires-action status, then stop
           onInterrupt(evt.payload);
 
-          const parts: ThreadAssistantMessagePart[] = [];
-          if (accumulatedText) {
-            parts.push({ type: "text" as const, text: accumulatedText });
-          }
-          for (const tc of toolCalls.values()) {
-            parts.push({
-              type: "tool-call" as const,
-              ...tc,
-              ...(tc.result !== undefined ? { result: tc.result } : {}),
-              ...(tc.isError !== undefined ? { isError: tc.isError } : {}),
-            });
-          }
-          // Also add the pending approval tool calls from the interrupt
+          // Ensure any interrupt tool calls are present as parts.
           for (const tc of evt.payload.tool_calls) {
-            if (!toolCalls.has(tc.id)) {
+            if (!toolPartIndexById.has(tc.id)) {
               const args = tc.arguments ?? ({} as ReadonlyJSONObject);
-              parts.push({
-                type: "tool-call" as const,
-                toolCallId: tc.id,
-                toolName: tc.name,
-                args,
-                argsText: JSON.stringify(args),
-              });
+              upsertToolCallPart({ id: tc.id, name: tc.name, args });
             }
           }
 
-          yield {
-            content: parts,
-            status: {
+          if (parts.length > 0) {
+            yield snapshot({
               type: "requires-action" as const,
               reason: "interrupt" as const,
-            },
-          };
+            });
+          } else {
+            yield {
+              content: [],
+              status: {
+                type: "requires-action" as const,
+                reason: "interrupt" as const,
+              },
+            };
+          }
           return;
         } else if (evt.type === "error") {
-          yield {
-            content: [
-              {
-                type: "text" as const,
-                text: `Error: ${evt.error ?? "Unknown error"}`,
-              },
-            ],
-            status: { type: "incomplete" as const, reason: "error" as const },
-          };
+          // Make sure the error is visible even if no parts were built.
+          if (parts.length === 0) {
+            parts.push({
+              type: "text" as const,
+              text: `Error: ${evt.error ?? "Unknown error"}`,
+            });
+          } else {
+            parts.push({
+              type: "text" as const,
+              text: `\nError: ${evt.error ?? "Unknown error"}`,
+            });
+          }
+
+          if (parts.length > 0) {
+            yield snapshot({ type: "incomplete" as const, reason: "error" as const });
+          } else {
+            yield {
+              content: [],
+              status: { type: "incomplete" as const, reason: "error" as const },
+            };
+          }
           return;
         } else if (evt.type === "done") {
           // Normal completion - will exit the while loop
@@ -256,20 +303,8 @@ async function* parseSseStream(
         }
 
         // Yield full content snapshot after each meaningful event
-        const parts: ThreadAssistantMessagePart[] = [];
-        if (accumulatedText) {
-          parts.push({ type: "text" as const, text: accumulatedText });
-        }
-        for (const tc of toolCalls.values()) {
-          parts.push({
-            type: "tool-call" as const,
-            ...tc,
-            ...(tc.result !== undefined ? { result: tc.result } : {}),
-            ...(tc.isError !== undefined ? { isError: tc.isError } : {}),
-          });
-        }
         if (parts.length > 0) {
-          yield { content: parts };
+          yield snapshot();
         }
       }
     }
