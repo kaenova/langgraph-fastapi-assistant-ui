@@ -42,8 +42,20 @@ interface HitlContextValue {
   decisions: Record<string, "approved" | "rejected">;
   /** Set a decision for a tool call. */
   setDecision: (id: string, decision: "approved" | "rejected") => void;
+  /** Editable tool-call arguments as JSON text, keyed by tool call id. */
+  argsDraftTextById: Record<string, string>;
+  /** Set JSON text for a tool call's arguments. */
+  setArgsDraftText: (id: string, jsonText: string) => void;
+  /** Reset a draft back to interrupt-provided arguments. */
+  resetArgsDraftText: (id: string) => void;
+  /** JSON validation errors for drafts, keyed by tool call id. */
+  argsDraftErrorById: Record<string, string | null>;
+  /** Best-effort args text to display in tool cards (draft/executed). */
+  argsDisplayTextById: Record<string, string>;
   /** Whether all pending tool calls are decided. */
   allDecided: boolean;
+  /** Whether all approved tool calls have valid JSON object args. */
+  allApprovedArgsValid: boolean;
   /** Submit approvals/rejections to resume the graph. */
   submitDecisions: () => void;
   /** Known tool results keyed by tool call id. */
@@ -52,6 +64,31 @@ interface HitlContextValue {
   threadId: string;
   /** Reset any pending interrupt UI state. */
   resetInterrupt: () => void;
+}
+
+function prettyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
+function parseJsonObject(text: string): {
+  value: ReadonlyJSONObject | null;
+  error: string | null;
+} {
+  const trimmed = text.trim();
+  if (!trimmed) return { value: {} as ReadonlyJSONObject, error: null };
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { value: null, error: "Arguments must be a JSON object." };
+    }
+    return { value: parsed as ReadonlyJSONObject, error: null };
+  } catch {
+    return { value: null, error: "Invalid JSON." };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +289,17 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const [decisions, setDecisions] = useState<
     Record<string, "approved" | "rejected">
   >({});
+
+  const [argsDraftTextById, setArgsDraftTextById] = useState<
+    Record<string, string>
+  >({});
+  const [argsDraftErrorById, setArgsDraftErrorById] = useState<
+    Record<string, string | null>
+  >({});
+  const [argsDisplayTextById, setArgsDisplayTextById] = useState<
+    Record<string, string>
+  >({});
+
   const [toolResults, setToolResults] = useState<
     Record<string, { result: unknown; isError?: boolean }>
   >({});
@@ -260,19 +308,29 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const threadIdRef = useRef<string>(crypto.randomUUID());
 
   // Ref to hold pending feedback for the next run() call
-  const pendingFeedbackRef = useRef<{
-    approved_ids: string[];
-    rejected_ids: string[];
-  } | null>(null);
+  const pendingFeedbackRef = useRef<
+    | {
+        type: "tool_approval";
+        decisions: Array<
+          | { id: string; decision: "approved"; arguments: ReadonlyJSONObject }
+          | { id: string; decision: "rejected" }
+        >;
+      }
+    | null
+  >(null);
 
   // Ref to hold the runtime for programmatic message appending
   const runtimeRef = useRef<ReturnType<typeof useLocalRuntime> | null>(null);
 
   const sendFeedback = useCallback(
-    (approvalData: { approved_ids: string[]; rejected_ids: string[] }) => {
+    (
+      approvalData: NonNullable<(typeof pendingFeedbackRef)["current"]>,
+    ) => {
       pendingFeedbackRef.current = approvalData;
       setPendingInterrupt(null);
       setDecisions({});
+      setArgsDraftTextById({});
+      setArgsDraftErrorById({});
 
       const parentId = pendingInterruptMessageIdRef.current;
       pendingInterruptMessageIdRef.current = null;
@@ -287,26 +345,114 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
     setPendingInterrupt(null);
     pendingInterruptMessageIdRef.current = null;
     setDecisions({});
+    setArgsDraftTextById({});
+    setArgsDraftErrorById({});
   }, []);
 
   const pendingToolCalls = pendingInterrupt?.tool_calls ?? [];
+
+  useEffect(() => {
+    if (!pendingInterrupt) return;
+    setArgsDraftTextById((prev) => {
+      const next = { ...prev };
+      for (const tc of pendingInterrupt.tool_calls) {
+        if (!(tc.id in next)) {
+          next[tc.id] = prettyJson(tc.arguments ?? {});
+        }
+      }
+      return next;
+    });
+
+    setArgsDisplayTextById((prev) => {
+      const next = { ...prev };
+      for (const tc of pendingInterrupt.tool_calls) {
+        if (!(tc.id in next)) {
+          next[tc.id] = prettyJson(tc.arguments ?? {});
+        }
+      }
+      return next;
+    });
+  }, [pendingInterrupt]);
+
   const allDecided = useMemo(() => {
     if (pendingToolCalls.length === 0) return false;
     return pendingToolCalls.every((tc) => tc.id in decisions);
   }, [pendingToolCalls, decisions]);
 
+  const allApprovedArgsValid = useMemo(() => {
+    // If there are no approved tool calls, allow submit (pure reject path).
+    if (pendingToolCalls.length === 0) return false;
+    const anyApproved = pendingToolCalls.some((tc) => decisions[tc.id] === "approved");
+    if (!anyApproved) return true;
+    for (const tc of pendingToolCalls) {
+      if (decisions[tc.id] !== "approved") continue;
+      const draft =
+        argsDraftTextById[tc.id] ?? prettyJson(tc.arguments ?? ({} as unknown));
+      const parsed = parseJsonObject(draft);
+      if (parsed.error || !parsed.value) return false;
+    }
+    return true;
+  }, [pendingToolCalls, decisions, argsDraftTextById, pendingInterrupt]);
+
   const submitDecisions = useCallback(() => {
     if (!pendingInterrupt) return;
     if (!allDecided) return;
-    sendFeedback({
-      approved_ids: pendingToolCalls
-        .filter((tc) => decisions[tc.id] === "approved")
-        .map((tc) => tc.id),
-      rejected_ids: pendingToolCalls
-        .filter((tc) => decisions[tc.id] === "rejected")
-        .map((tc) => tc.id),
+
+    const nextErrors: Record<string, string | null> = {};
+    const payload: NonNullable<(typeof pendingFeedbackRef)["current"]> = {
+      type: "tool_approval",
+      decisions: [],
+    };
+
+    for (const tc of pendingToolCalls) {
+      const decision = decisions[tc.id];
+      if (decision === "rejected") {
+        payload.decisions.push({ id: tc.id, decision: "rejected" });
+        continue;
+      }
+
+      if (decision !== "approved") {
+        // Safe default: treat missing/unknown as rejected.
+        payload.decisions.push({ id: tc.id, decision: "rejected" });
+        continue;
+      }
+
+      const draft = argsDraftTextById[tc.id] ?? prettyJson(tc.arguments ?? {});
+      const parsed = parseJsonObject(draft);
+      nextErrors[tc.id] = parsed.error;
+      if (parsed.error || !parsed.value) {
+        setArgsDraftErrorById((prev) => ({ ...prev, ...nextErrors }));
+        return;
+      }
+      payload.decisions.push({
+        id: tc.id,
+        decision: "approved",
+        arguments: parsed.value,
+      });
+    }
+
+    // Preserve arguments shown in tool cards after interrupt clears.
+    setArgsDisplayTextById((prev) => {
+      const next = { ...prev };
+      for (const tc of pendingToolCalls) {
+        const draft = argsDraftTextById[tc.id];
+        if (typeof draft === "string") {
+          next[tc.id] = draft;
+        }
+      }
+      return next;
     });
-  }, [pendingInterrupt, allDecided, pendingToolCalls, decisions, sendFeedback]);
+
+    setArgsDraftErrorById((prev) => ({ ...prev, ...nextErrors }));
+    sendFeedback(payload);
+  }, [
+    pendingInterrupt,
+    allDecided,
+    pendingToolCalls,
+    decisions,
+    argsDraftTextById,
+    sendFeedback,
+  ]);
 
   useEffect(() => {
     setDecisions({});
@@ -406,9 +552,28 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
         setDecision: (id, decision) => {
           setDecisions((prev) => ({ ...prev, [id]: decision }));
         },
+        argsDraftTextById,
+        setArgsDraftText: (id, jsonText) => {
+          setArgsDraftTextById((prev) => ({ ...prev, [id]: jsonText }));
+          const parsed = parseJsonObject(jsonText);
+          setArgsDraftErrorById((prev) => ({ ...prev, [id]: parsed.error }));
+          setArgsDisplayTextById((prev) => ({ ...prev, [id]: jsonText }));
+        },
+        resetArgsDraftText: (id) => {
+          if (!pendingInterrupt) return;
+          const tc = pendingInterrupt.tool_calls.find((x) => x.id === id);
+          if (!tc) return;
+          const text = prettyJson(tc.arguments ?? {});
+          setArgsDraftTextById((prev) => ({ ...prev, [id]: text }));
+          setArgsDraftErrorById((prev) => ({ ...prev, [id]: null }));
+          setArgsDisplayTextById((prev) => ({ ...prev, [id]: text }));
+        },
+        argsDraftErrorById,
         allDecided,
+        allApprovedArgsValid,
         submitDecisions,
         toolResults,
+        argsDisplayTextById,
         threadId: threadIdRef.current,
         resetInterrupt,
       }}

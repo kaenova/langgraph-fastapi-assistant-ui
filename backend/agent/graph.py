@@ -1,14 +1,8 @@
 """LangGraph agent implementation with human-in-the-loop approval."""
 
-from typing import Annotated, Dict, List, Literal, TypedDict
+from typing import Annotated, List, Literal, TypedDict
 
-from langchain_core.messages import (
-    AIMessage,
-    BaseMessage,
-    HumanMessage,
-    SystemMessage,
-    ToolMessage,
-)
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
@@ -48,7 +42,7 @@ def should_continue(state: AgentState) -> Literal["approval", "tools", "end"]:
     last_message = messages[-1]
 
     # If the LLM makes a tool call, then we route to the "tools" node
-    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+    if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # Debug: Print tool calls
         print(f"\n🔧 LLM Tool Calls ({len(last_message.tool_calls)}):")
         for i, tool_call in enumerate(last_message.tool_calls, 1):
@@ -101,7 +95,12 @@ async def call_model(state: AgentState, config=None) -> dict:
     print(messages)
 
     prompty = get_prompty_client()
-    prompt = prompty.get_prompt("Main Chat Agent")
+    prompt = None
+    try:
+        prompt = prompty.get_prompt("Main Chat Agent")
+    except Exception as e:
+        print(f"Error getting prompt: {e}")
+
     if prompt is None:
         prompt = FALLBACK_SYSTEM_PROMPT
 
@@ -131,7 +130,7 @@ def approval_node(state: AgentState) -> dict:
         and rejection messages.
     """
     last_message = state["messages"][-1]
-    if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+    if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
         return {"messages": []}
 
     calls = last_message.tool_calls
@@ -155,26 +154,49 @@ def approval_node(state: AgentState) -> dict:
         }
     )
 
-    # Process the approval decision
-    approved_ids = set(approval.get("approved_ids", []))
-    rejected_ids = set(approval.get("rejected_ids", []))
+    decisions_raw = approval.get("decisions", [])
+    decisions_by_id: dict[str, dict] = {}
+    if isinstance(decisions_raw, list):
+        for item in decisions_raw:
+            if not isinstance(item, dict):
+                continue
+            tc_id = item.get("id")
+            decision = item.get("decision")
+            if not tc_id or decision not in ("approved", "rejected"):
+                continue
+            decisions_by_id[tc_id] = {
+                "decision": decision,
+                "arguments": item.get("arguments", None),
+            }
 
-    # Keep approved + safe tool calls, remove rejected ones
-    filtered_calls = [
-        tc
-        for tc in calls
-        if tc["id"] in approved_ids or tc.get("name") not in DANGEROUS_TOOL_NAMES
-    ]
+    # Keep safe tool calls. For dangerous tool calls, include only approved ones,
+    # and allow the frontend to override arguments.
+    filtered_calls = []
+    for tc in calls:
+        name = tc.get("name")
+        if name not in DANGEROUS_TOOL_NAMES:
+            filtered_calls.append(tc)
+            continue
 
-    # Create rejection ToolMessages for rejected tool calls
-    rejections: List[ToolMessage] = [
-        ToolMessage(
-            content="Tool call rejected by user.",
-            tool_call_id=tc["id"],
-        )
-        for tc in calls
-        if tc["id"] in rejected_ids
-    ]
+        tc_id = tc.get("id")
+        if not isinstance(tc_id, str) or not tc_id:
+            continue
+
+        decision_info = decisions_by_id.get(tc_id)
+        if not decision_info or decision_info.get("decision") != "approved":
+            continue
+
+        override_args = decision_info.get("arguments", None)
+        if override_args is None:
+            override_args = tc.get("args", {})
+
+        # Only accept JSON-object arguments.
+        if not isinstance(override_args, dict):
+            continue
+
+        updated_tc = dict(tc)
+        updated_tc["args"] = override_args
+        filtered_calls.append(updated_tc)
 
     # Build updated AI message with only the allowed tool calls
     updated_message = AIMessage(
@@ -182,8 +204,8 @@ def approval_node(state: AgentState) -> dict:
         tool_calls=filtered_calls,
     )
 
-    # Replace the last message and append rejections
-    return {"messages": [updated_message] + rejections}
+    # Replace the last message with only the allowed tool calls.
+    return {"messages": [updated_message]}
 
 
 def get_graph():

@@ -330,9 +330,15 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     pendingInterrupt,
     decisions,
     setDecision,
+    argsDraftTextById,
+    setArgsDraftText,
+    resetArgsDraftText,
+    argsDraftErrorById,
     allDecided,
+    allApprovedArgsValid,
     submitDecisions,
     toolResults,
+    argsDisplayTextById,
   } = useHitl();
 
   const interruptToolCalls = pendingInterrupt?.tool_calls ?? [];
@@ -340,6 +346,12 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const decision = decisions[toolCallId];
   const isLastInterruptTool =
     interruptToolCalls[interruptToolCalls.length - 1]?.id === toolCallId;
+
+  const displayArgsText =
+    (isInterruptTool ? argsDraftTextById[toolCallId] : undefined) ??
+    argsDisplayTextById[toolCallId] ??
+    argsText;
+  const draftError = argsDraftErrorById[toolCallId] ?? null;
 
   const storedResult = toolResults[toolCallId];
   useEffect(() => {
@@ -374,10 +386,49 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
       <ToolFallbackTrigger toolName={toolName} status={status} hint={hint} />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
-        <ToolFallbackArgs
-          argsText={argsText}
-          className={cn(isCancelled && "opacity-60")}
-        />
+        {isInterruptTool && !isCancelled ? (
+          <div className="px-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-muted-foreground">
+                Arguments (editable):
+              </p>
+              <button
+                type="button"
+                onClick={() => resetArgsDraftText(toolCallId)}
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Reset
+              </button>
+            </div>
+            <textarea
+              value={argsDraftTextById[toolCallId] ?? displayArgsText ?? "{}"}
+              onChange={(e) => setArgsDraftText(toolCallId, e.target.value)}
+              disabled={decision === "rejected"}
+              spellCheck={false}
+              className={cn(
+                "mt-1 w-full resize-y rounded-md border bg-background px-2 py-1.5 font-mono text-xs leading-5",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                decision === "rejected" && "opacity-60",
+                draftError && decision !== "rejected" && "border-red-500/50",
+              )}
+              rows={6}
+            />
+            {draftError && decision !== "rejected" ? (
+              <p className="mt-1 text-xs text-red-600">{draftError}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {!isInterruptTool ? (
+          <ToolFallbackArgs
+            argsText={displayArgsText}
+            className={cn(isCancelled && "opacity-60")}
+          />
+        ) : isCancelled ? (
+          <ToolFallbackArgs
+            argsText={displayArgsText}
+            className={cn(isCancelled && "opacity-60")}
+          />
+        ) : null}
         {isInterruptTool && (
           <div className="flex flex-col gap-2 px-4">
             <div className="flex flex-wrap gap-2">
@@ -415,10 +466,10 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
               <button
                 type="button"
                 onClick={submitDecisions}
-                disabled={!allDecided}
+                disabled={!allDecided || !allApprovedArgsValid}
                 className={cn(
                   "mt-1 rounded-md border px-3 py-1.5 text-xs font-medium",
-                  allDecided
+                  allDecided && allApprovedArgsValid
                     ? "border-foreground/20 bg-foreground text-background"
                     : "border-border text-muted-foreground",
                 )}
@@ -426,6 +477,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
                 Send Feedback
               </button>
             )}
+            {isLastInterruptTool && allDecided && !allApprovedArgsValid ? (
+              <p className="text-xs text-muted-foreground">
+                Fix argument JSON for approved tool calls to continue.
+              </p>
+            ) : null}
           </div>
         )}
         {!isCancelled && <ToolFallbackResult result={result} />}
