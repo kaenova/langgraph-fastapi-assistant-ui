@@ -6,11 +6,12 @@ feedback. Both endpoints share the same LangGraph-to-SSE event converter.
 
 import json
 import logging
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
+from langchain_core.runnables.config import RunnableConfig
 from langgraph.types import Command
 from pydantic import BaseModel
 
@@ -36,14 +37,24 @@ class Message(BaseModel):
 class StreamRequest(BaseModel):
     """Request body for the /stream endpoint."""
 
-    messages: List[Message]
+    # Required: conversation thread id.
     thread_id: str = "default"
+
+    # Optional: checkpoint to time travel / fork from.
+    checkpoint_id: Optional[str] = None
+
+    # Preferred: send only the delta user message.
+    message: Optional[Message] = None
+
+    # Back-compat: old clients sent the full transcript.
+    messages: Optional[List[Message]] = None
 
 
 class FeedbackRequest(BaseModel):
     """Request body for the /feedback endpoint (HITL resume)."""
 
     thread_id: str
+    checkpoint_id: Optional[str] = None
     approval_data: Dict[str, Any]
 
 
@@ -96,6 +107,18 @@ async def langgraph_events_to_sse(
     Yields:
         SSE-formatted strings.
     """
+
+    def _checkpoint_id_from_state(state: Any) -> Optional[str]:
+        try:
+            cfg = getattr(state, "config", None) or {}
+            configurable = cfg.get("configurable", {}) if isinstance(cfg, dict) else {}
+            cp_id = configurable.get("checkpoint_id")
+            if isinstance(cp_id, str) and cp_id:
+                return cp_id
+        except Exception:
+            return None
+        return None
+
     try:
         async for event in events:
             if await req.is_disconnected():
@@ -169,28 +192,56 @@ async def langgraph_events_to_sse(
                         }
                     )
 
-        # -- Check for interrupts after stream ends -----------------------------
+        # -- Inspect final state (interrupt vs complete) ------------------------
+        state = None
         try:
-            state = await graph.aget_state(config)
-            if state and state.next:
-                # Graph is paused at a node -- check for interrupt values
-                interrupts = getattr(state, "tasks", [])
-                for task in interrupts:
-                    if hasattr(task, "interrupts") and task.interrupts:
-                        for intr in task.interrupts:
-                            interrupt_value = intr.value
-                            yield sse(
-                                {
-                                    "type": "interrupt",
-                                    "payload": interrupt_value,
-                                }
-                            )
-                        # After emitting interrupt, stop
-                        return
-        except Exception as e:
-            logger.warning(f"Could not check graph state for interrupts: {e}")
+            # IMPORTANT: do not pass checkpoint_id when inspecting final state.
+            # If we include checkpoint_id here (e.g. when /feedback resumes from an
+            # interrupted checkpoint), LangGraph will "time travel" and we'll
+            # incorrectly re-emit the original interrupt.
+            thread_id = None
+            if isinstance(config, dict):
+                configurable = config.get("configurable")
+                if isinstance(configurable, dict):
+                    thread_id = configurable.get("thread_id")
 
-        # -- Normal completion --------------------------------------------------
+            state_config = (
+                cast(RunnableConfig, {"configurable": {"thread_id": thread_id}})
+                if thread_id
+                else config
+            )
+
+            state = await graph.aget_state(state_config)
+        except Exception as e:
+            logger.warning(f"Could not check graph state: {e}")
+
+        cp_id = _checkpoint_id_from_state(state) if state else None
+
+        # If paused, emit meta + interrupt payload.
+        if state and getattr(state, "next", None):
+            interrupts = getattr(state, "tasks", [])
+            for task in interrupts:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    if cp_id:
+                        yield sse(
+                            {
+                                "type": "meta",
+                                "phase": "interrupt",
+                                "checkpoint_id": cp_id,
+                            }
+                        )
+                    for intr in task.interrupts:
+                        yield sse(
+                            {
+                                "type": "interrupt",
+                                "payload": intr.value,
+                            }
+                        )
+                    return
+
+        # Normal completion: emit meta + done.
+        if cp_id:
+            yield sse({"type": "meta", "phase": "complete", "checkpoint_id": cp_id})
         yield sse({"type": "done"})
         yield "data: [DONE]\n\n"
 
@@ -221,17 +272,40 @@ async def stream_endpoint(payload: StreamRequest, req: Request):
     """
     graph = get_graph()
 
-    graph_input = {
-        "messages": [{"role": m.role, "content": m.content} for m in payload.messages],
-    }
-    config = {"configurable": {"thread_id": payload.thread_id}}
+    # Prefer a single delta message (new architecture) but accept full transcripts
+    # for back-compat.
+    input_messages: List[dict] = []
+    if payload.message is not None:
+        input_messages = [
+            {"role": payload.message.role, "content": payload.message.content}
+        ]
+    elif payload.messages is not None:
+        input_messages = [
+            {"role": m.role, "content": m.content} for m in payload.messages
+        ]
+
+    graph_input = {"messages": input_messages}
+
+    configurable: Dict[str, Any] = {"thread_id": payload.thread_id}
+    if payload.checkpoint_id:
+        configurable["checkpoint_id"] = payload.checkpoint_id
+    config = cast(RunnableConfig, {"configurable": configurable})
 
     logger.info(
         f"Starting stream for thread_id={payload.thread_id} "
-        f"with {len(payload.messages)} messages"
+        f"checkpoint_id={payload.checkpoint_id or ''} "
+        f"input_messages={len(input_messages)}"
     )
 
     async def event_gen():
+        yield sse(
+            {
+                "type": "meta",
+                "phase": "start",
+                "thread_id": payload.thread_id,
+                "checkpoint_id": payload.checkpoint_id,
+            }
+        )
         events = graph.astream_events(graph_input, config=config, version="v2")
         async for chunk in langgraph_events_to_sse(events, req, graph, config):
             yield chunk
@@ -262,14 +336,27 @@ async def feedback_endpoint(payload: FeedbackRequest, req: Request):
         StreamingResponse with SSE events.
     """
     graph = get_graph()
-    config = {"configurable": {"thread_id": payload.thread_id}}
+
+    configurable: Dict[str, Any] = {"thread_id": payload.thread_id}
+    if payload.checkpoint_id:
+        configurable["checkpoint_id"] = payload.checkpoint_id
+    config = cast(RunnableConfig, {"configurable": configurable})
 
     logger.info(
         f"Resuming graph for thread_id={payload.thread_id} "
+        f"checkpoint_id={payload.checkpoint_id or ''} "
         f"with approval_data={payload.approval_data}"
     )
 
     async def event_gen():
+        yield sse(
+            {
+                "type": "meta",
+                "phase": "start",
+                "thread_id": payload.thread_id,
+                "checkpoint_id": payload.checkpoint_id,
+            }
+        )
         command = Command(resume=payload.approval_data)
         events = graph.astream_events(command, config=config, version="v2")
         async for chunk in langgraph_events_to_sse(events, req, graph, config):

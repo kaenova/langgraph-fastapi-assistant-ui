@@ -202,6 +202,7 @@ def approval_node(state: AgentState) -> dict:
     updated_message = AIMessage(
         content=last_message.content,
         tool_calls=filtered_calls,
+        id=last_message.id,
     )
 
     # Replace the last message with only the allowed tool calls.

@@ -17,6 +17,7 @@ import {
   type ChatModelRunOptions,
   type ChatModelRunResult,
   type ThreadAssistantMessagePart,
+  type ThreadMessage,
   useAuiEvent,
 } from "@assistant-ui/react";
 
@@ -109,6 +110,9 @@ export function useHitl() {
 
 interface SseEvent {
   type: string;
+  phase?: string;
+  thread_id?: string;
+  checkpoint_id?: string | null;
   content?: string;
   id?: string;
   tool_call_id?: string;
@@ -128,6 +132,7 @@ async function* parseSseStream(
   {
     onInterrupt,
     onToolResult,
+    onMeta,
   }: {
     onInterrupt: (payload: InterruptPayload) => void;
     onToolResult: (
@@ -135,6 +140,7 @@ async function* parseSseStream(
       result: unknown,
       isError?: boolean,
     ) => void;
+    onMeta: (meta: { phase: string; threadId?: string; checkpointId?: string | null }) => void;
   },
 ): AsyncGenerator<ChatModelRunResult> {
   if (!response.body) {
@@ -236,6 +242,13 @@ async function* parseSseStream(
 
         if (evt.type === "token" && evt.content) {
           appendToken(evt.content);
+        } else if (evt.type === "meta" && evt.phase) {
+          onMeta({
+            phase: evt.phase,
+            threadId: evt.thread_id,
+            checkpointId: evt.checkpoint_id,
+          });
+          continue;
         } else if (evt.type === "tool_call" && evt.id && evt.name) {
           const args = evt.arguments ?? ({} as ReadonlyJSONObject);
           upsertToolCallPart({ id: evt.id, name: evt.name, args });
@@ -340,7 +353,112 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   >({});
 
   // Persistent thread_id for the session
-  const threadIdRef = useRef<string>(crypto.randomUUID());
+  const threadIdRef = useRef<string>(
+    typeof window === "undefined"
+      ? "default"
+      : (new URLSearchParams(window.location.search).get("thread") ??
+          localStorage.getItem("aui_thread_id") ??
+          crypto.randomUUID()),
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("aui_thread_id", threadIdRef.current);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("thread") !== threadIdRef.current) {
+      url.searchParams.set("thread", threadIdRef.current);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
+  const lgCheckpointByMessageIdRef = useRef<Record<string, string>>({});
+  const lastRunCheckpointIdRef = useRef<string | null>(null);
+
+  const getCheckpointFromMessage = useCallback((message: ThreadMessage) => {
+    const custom = (message.metadata?.custom ?? {}) as Record<string, unknown>;
+    const lg = custom.lg as
+      | {
+          checkpoint_id?: unknown;
+        }
+      | undefined;
+    const cp = lg?.checkpoint_id;
+    return typeof cp === "string" && cp ? cp : null;
+  }, []);
+
+  const rebuildCheckpointIndex = useCallback(() => {
+    const rt = runtimeRef.current;
+    if (!rt) return;
+    try {
+      const repo = rt.thread.export();
+      const next: Record<string, string> = {};
+      for (const item of repo.messages) {
+        const cp = getCheckpointFromMessage(item.message);
+        if (cp) next[item.message.id] = cp;
+      }
+      lgCheckpointByMessageIdRef.current = next;
+    } catch {
+      // ignore
+    }
+  }, [getCheckpointFromMessage]);
+
+  const getCheckpointForParentId = useCallback(
+    (
+      parentId: string | null,
+      fallbackMessages?: readonly ThreadMessage[],
+    ): string | null => {
+      // Preferred: walk runtime state (has parent pointers).
+      const rt = runtimeRef.current;
+      if (parentId && rt) {
+        let current: string | null = parentId;
+        for (let depth = 0; depth < 4 && current; depth++) {
+          const direct = lgCheckpointByMessageIdRef.current[current];
+          if (direct) return direct;
+
+          const state = rt.thread.getMessageById(current).getState();
+          const fromMeta = getCheckpointFromMessage(state as unknown as ThreadMessage);
+          if (fromMeta) {
+            lgCheckpointByMessageIdRef.current[current] = fromMeta;
+            return fromMeta;
+          }
+          current = state.parentId;
+        }
+      }
+
+      // Fallback: derive from the last assistant message in the provided message list.
+      if (fallbackMessages && fallbackMessages.length > 0) {
+        for (let i = fallbackMessages.length - 1; i >= 0; i--) {
+          const m = fallbackMessages[i];
+          if (m.role !== "assistant") continue;
+          const fromMeta = getCheckpointFromMessage(m);
+          if (fromMeta) return fromMeta;
+        }
+      }
+
+      return null;
+    },
+    [getCheckpointFromMessage],
+  );
+
+  const failIfMissingCheckpoint = useCallback(
+    (
+      computed: string | null,
+      opts: {
+        parentId: string | null;
+        messages: readonly ThreadMessage[];
+        context: string;
+      },
+    ) => {
+      if (computed) return null;
+      // Allow brand-new threads (no prior assistant to fork from).
+      const hasAnyAssistant = opts.messages.some((m) => m.role === "assistant");
+      if (!hasAnyAssistant) return null;
+      if (!opts.parentId) {
+        return `Missing LangGraph checkpoint for ${opts.context} (no parentId provided).`;
+      }
+      return `Missing LangGraph checkpoint for ${opts.context} (parentId=${opts.parentId}).`;
+    },
+    [],
+  );
 
   // Ref to hold pending feedback for the next run() call
   const pendingFeedbackRef = useRef<
@@ -501,6 +619,7 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
         messages,
         abortSignal,
         unstable_assistantMessageId,
+        unstable_parentId,
       }: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult> {
         const threadId = threadIdRef.current;
         const feedback = pendingFeedbackRef.current;
@@ -512,29 +631,72 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
         if (feedback) {
           // Resume from HITL interrupt
           url = "/api/be/api/v1/chat/feedback";
+
+          const checkpointId = getCheckpointForParentId(
+            unstable_parentId ?? null,
+            messages,
+          );
+          if (!checkpointId) {
+            yield {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Backend error: missing checkpoint_id for feedback resume.",
+                },
+              ],
+              status: { type: "incomplete" as const, reason: "error" as const },
+            };
+            return;
+          }
+
           body = JSON.stringify({
             thread_id: threadId,
+            checkpoint_id: checkpointId,
             approval_data: feedback,
           });
         } else {
           // Normal chat stream
-          const formattedMessages = messages.map((m) => {
-            const text = m.content
-              .filter(
-                (c): c is { type: "text"; text: string } => c.type === "text",
-              )
-              .map((c) => c.text)
-              .join("");
+          const last = messages[messages.length - 1];
+          const text = last
+            ? last.content
+                .filter(
+                  (c): c is { type: "text"; text: string } => c.type === "text",
+                )
+                .map((c) => c.text)
+                .join("")
+            : "";
 
-            if (m.role === "user") return { role: "human", content: text };
-            if (m.role === "assistant") return { role: "ai", content: text };
-            return { role: m.role, content: text };
+          const deltaMessage = last && last.role === "user" ? text : "";
+
+          const checkpointId = getCheckpointForParentId(
+            unstable_parentId ?? null,
+            messages,
+          );
+          const missingCheckpointError = failIfMissingCheckpoint(checkpointId, {
+            parentId: unstable_parentId ?? null,
+            messages,
+            context: "run",
           });
+          if (missingCheckpointError) {
+            yield {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Backend error: ${missingCheckpointError}`,
+                },
+              ],
+              status: { type: "incomplete" as const, reason: "error" as const },
+            };
+            return;
+          }
 
           url = "/api/be/api/v1/chat/stream";
           body = JSON.stringify({
-            messages: formattedMessages,
             thread_id: threadId,
+            checkpoint_id: checkpointId,
+            message: deltaMessage
+              ? { role: "human", content: deltaMessage }
+              : null,
           });
         }
 
@@ -559,6 +721,7 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        let completedCheckpointId: string | null = null;
         yield* parseSseStream(response, {
           onInterrupt: (payload) => {
             pendingInterruptMessageIdRef.current =
@@ -571,13 +734,90 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
               return { ...prev, [toolCallId]: { result, isError } };
             });
           },
+          onMeta: ({ phase, checkpointId }) => {
+            if (phase === "complete" || phase === "interrupt") {
+              if (typeof checkpointId === "string" && checkpointId) {
+                completedCheckpointId = checkpointId;
+                lastRunCheckpointIdRef.current = checkpointId;
+              }
+            }
+          },
         });
+
+        if (
+          unstable_assistantMessageId &&
+          completedCheckpointId &&
+          typeof completedCheckpointId === "string"
+        ) {
+          lgCheckpointByMessageIdRef.current[unstable_assistantMessageId] =
+            completedCheckpointId;
+          yield {
+            metadata: {
+              custom: {
+                lg: {
+                  thread_id: threadId,
+                  checkpoint_id: completedCheckpointId,
+                },
+              },
+            },
+          };
+        }
+
+        // Keep the in-memory index aligned with repository state.
+        rebuildCheckpointIndex();
       },
     };
   }
 
   const runtime = useLocalRuntime(adapterRef.current);
   runtimeRef.current = runtime;
+
+  // Load persisted repository once, and persist changes thereafter.
+  useEffect(() => {
+    let cancelled = false;
+    const threadId = threadIdRef.current;
+    (async () => {
+      try {
+        const res = await fetch(`/api/be/api/v1/threads/${threadId}/repo`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { repo: unknown };
+        if (cancelled) return;
+        if (data && typeof data === "object" && (data as any).repo) {
+          runtime.thread.import((data as any).repo);
+          rebuildCheckpointIndex();
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runtime.thread]);
+
+  useEffect(() => {
+    const threadId = threadIdRef.current;
+    let timeout: number | null = null;
+    const unsub = runtime.thread.subscribe(() => {
+      if (typeof window === "undefined") return;
+      if (timeout) window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        const repo = runtime.thread.export();
+        fetch(`/api/be/api/v1/threads/${threadId}/repo`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repo }),
+        }).catch(() => undefined);
+      }, 500);
+    });
+    return () => {
+      if (timeout) window.clearTimeout(timeout);
+      unsub();
+    };
+  }, [runtime.thread]);
 
   return (
     <HitlContext.Provider
