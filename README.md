@@ -18,7 +18,10 @@ Assistant UI (React) -> LocalRuntime adapter -> Next.js proxy (/api/be/*)
 
 CosmosDB containers:
   - langgraph_checkpoints  (LangGraph state)
-  - thread_repos           (Assistant UI MessageRepository export)
+  - thread_repos           (Assistant UI MessageRepository pointer metadata)
+
+Azure Blob Storage:
+  - thread_repos/*         (Assistant UI MessageRepository payloads)
 ```
 
 Key rule: the backend is authoritative.
@@ -150,7 +153,8 @@ Copy/create:
   - `GET /api/v1/threads/{thread_id}/repo`
   - `PUT /api/v1/threads/{thread_id}/repo`
 - `backend/lib/thread_repo_store.py`
-  - CosmosDB container `thread_repos` partitioned by `/thread_id`
+  - CosmosDB container `thread_repos` partitioned by `/thread_id` (pointer metadata)
+  - Repo payloads stored in Azure Blob Storage under `thread_repos/`
 
 Wire it in `backend/main.py`:
 
@@ -165,6 +169,11 @@ For the checkpointer + repo store (CosmosDB), set:
 - `COSMOS_ENDPOINT`
 - `COSMOS_KEY`
 - `COSMOS_DATABASE_NAME`
+
+For repo payloads in Blob Storage, set:
+
+- `AZURE_STORAGE_CONNECTION_STRING`
+- `AZURE_STORAGE_CONTAINER_NAME`
 
 Your model/tool environment variables depend on your graph/tools (see `backend/agent/tools.py`).
 
