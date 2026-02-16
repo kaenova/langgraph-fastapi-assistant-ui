@@ -1,16 +1,16 @@
 "use client";
 
-import { MyRuntimeProvider } from "@/components/assistant-ui/MyRuntimeProvider";
+import { CustomLanggraphRuntime } from "@/components/assistant-ui/CustomLanggraphRuntime";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export const Assistant = () => {
   return (
-    <MyRuntimeProvider>
+    <CustomLanggraphRuntime>
       <div className="relative flex h-dvh flex-col">
         <div className="flex-1 overflow-hidden">
           <Thread />
         </div>
       </div>
-    </MyRuntimeProvider>
+    </CustomLanggraphRuntime>
   );
 };

@@ -126,7 +126,7 @@ This proxies browser requests to `process.env.BACKEND_URL` (default `http://loca
 
 Copy/create:
 
-- `frontend/components/assistant-ui/MyRuntimeProvider.tsx`
+- `frontend/components/assistant-ui/CustomLanggraphRuntime.tsx`
 
 What it does:
 
@@ -186,7 +186,7 @@ Backend:
 Frontend:
 
 - `frontend/app/api/be/[...path]/route.ts`
-- `frontend/components/assistant-ui/MyRuntimeProvider.tsx`
+- `frontend/components/assistant-ui/CustomLanggraphRuntime.tsx`
 - `frontend/components/assistant-ui/thread.tsx`
 - `frontend/components/assistant-ui/tool-fallback.tsx`
 

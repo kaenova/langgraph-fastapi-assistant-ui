@@ -100,7 +100,8 @@ const HitlContext = createContext<HitlContextValue | null>(null);
 
 export function useHitl() {
   const ctx = useContext(HitlContext);
-  if (!ctx) throw new Error("useHitl must be used within MyRuntimeProvider");
+  if (!ctx)
+    throw new Error("useHitl must be used within CustomLanggraphRuntime");
   return ctx;
 }
 
@@ -376,7 +377,7 @@ async function* parseSseStream(
 // Runtime Provider
 // ---------------------------------------------------------------------------
 
-export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
   const [pendingInterrupt, setPendingInterrupt] =
     useState<InterruptPayload | null>(null);
   const pendingInterruptMessageIdRef = useRef<string | null>(null);

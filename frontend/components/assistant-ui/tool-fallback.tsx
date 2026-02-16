@@ -21,7 +21,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { useHitl } from "./MyRuntimeProvider";
+import { useHitl } from "./CustomLanggraphRuntime";
 
 const ANIMATION_DURATION = 200;
 
