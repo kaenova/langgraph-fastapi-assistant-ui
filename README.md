@@ -5,3 +5,5 @@ Supported Feature:
 - Text Streaming
 - Tool Calling
 - Human in the loop, tools approval.
+- Answer Regenerate
+- Message Editting

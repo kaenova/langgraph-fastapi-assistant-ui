@@ -123,6 +123,52 @@ interface SseEvent {
   is_error?: boolean;
 }
 
+async function fetchInterruptStatus(opts: {
+  threadId: string;
+  checkpointId: string | null;
+}): Promise<
+  | {
+      interrupted: true;
+      checkpoint_id?: string | null;
+      payload: InterruptPayload;
+    }
+  | {
+      interrupted: false;
+      checkpoint_id?: string | null;
+    }
+  | null
+> {
+  try {
+    const url = new URL(
+      "/api/be/api/v1/chat/interrupt",
+      typeof window === "undefined" ? "http://localhost" : window.location.origin,
+    );
+    url.searchParams.set("thread_id", opts.threadId);
+    if (opts.checkpointId) url.searchParams.set("checkpoint_id", opts.checkpointId);
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as any;
+    if (!data || typeof data !== "object") return null;
+    if (data.interrupted === true && data.payload) {
+      return {
+        interrupted: true,
+        checkpoint_id: data.checkpoint_id ?? null,
+        payload: data.payload as InterruptPayload,
+      };
+    }
+    if (data.interrupted === false) {
+      return { interrupted: false, checkpoint_id: data.checkpoint_id ?? null };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Parse incoming SSE bytes into event objects, accumulate text + tool calls,
  * and yield full content snapshots for the LocalRuntime.
@@ -772,6 +818,41 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const runtime = useLocalRuntime(adapterRef.current);
   runtimeRef.current = runtime;
 
+  const rehydrateInterruptForBranchHead = useCallback(async () => {
+    const rt = runtimeRef.current;
+    if (!rt) return;
+    const threadId = threadIdRef.current;
+    const { messages } = rt.thread.getState();
+    let lastAssistant: ThreadMessage | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.role === "assistant") {
+        lastAssistant = messages[i] ?? null;
+        break;
+      }
+    }
+    if (!lastAssistant) {
+      setPendingInterrupt(null);
+      pendingInterruptMessageIdRef.current = null;
+      return;
+    }
+
+    const checkpointId =
+      getCheckpointFromMessage(lastAssistant) ??
+      lgCheckpointByMessageIdRef.current[lastAssistant.id] ??
+      null;
+
+    const status = await fetchInterruptStatus({ threadId, checkpointId });
+    if (!status) return;
+
+    if (status.interrupted) {
+      pendingInterruptMessageIdRef.current = lastAssistant.id;
+      setPendingInterrupt(status.payload);
+    } else {
+      setPendingInterrupt(null);
+      pendingInterruptMessageIdRef.current = null;
+    }
+  }, [getCheckpointFromMessage]);
+
   // Load persisted repository once, and persist changes thereafter.
   useEffect(() => {
     let cancelled = false;
@@ -788,6 +869,9 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
         if (data && typeof data === "object" && (data as any).repo) {
           runtime.thread.import((data as any).repo);
           rebuildCheckpointIndex();
+          if (!cancelled) {
+            await rehydrateInterruptForBranchHead();
+          }
         }
       } catch {
         // ignore
@@ -797,6 +881,34 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [runtime.thread]);
+
+  // Keep HITL UI in sync when switching branches (branch head changes).
+  useEffect(() => {
+    let timeout: number | null = null;
+    let lastHeadId: string | null = null;
+    const unsub = runtime.thread.subscribe(() => {
+      const { messages } = runtime.thread.getState();
+      let head: ThreadMessage | null = null;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i]?.role === "assistant") {
+          head = messages[i] ?? null;
+          break;
+        }
+      }
+      const headId = head?.id ?? null;
+      if (headId === lastHeadId) return;
+      lastHeadId = headId;
+
+      if (timeout) window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        rehydrateInterruptForBranchHead();
+      }, 300);
+    });
+    return () => {
+      if (timeout) window.clearTimeout(timeout);
+      unsub();
+    };
+  }, [runtime.thread, rehydrateInterruptForBranchHead]);
 
   useEffect(() => {
     const threadId = threadIdRef.current;

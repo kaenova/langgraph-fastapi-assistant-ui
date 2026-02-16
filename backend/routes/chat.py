@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any, AsyncIterator, Dict, List, Optional, cast
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from langchain_core.runnables.config import RunnableConfig
@@ -20,6 +20,34 @@ from agent.graph import get_graph
 logger = logging.getLogger(__name__)
 
 chat_routes = APIRouter()
+
+
+def _checkpoint_id_from_state(state: Any) -> Optional[str]:
+    """Extract checkpoint_id from a LangGraph state object."""
+    try:
+        cfg = getattr(state, "config", None) or {}
+        configurable = cfg.get("configurable", {}) if isinstance(cfg, dict) else {}
+        cp_id = configurable.get("checkpoint_id")
+        if isinstance(cp_id, str) and cp_id:
+            return cp_id
+    except Exception:
+        return None
+    return None
+
+
+def _first_interrupt_payload_from_state(state: Any) -> Optional[dict]:
+    """Return the first interrupt payload if the graph is paused."""
+    if not state or not getattr(state, "next", None):
+        return None
+    tasks = getattr(state, "tasks", [])
+    for task in tasks:
+        if hasattr(task, "interrupts") and task.interrupts:
+            intr = task.interrupts[0]
+            if hasattr(intr, "value") and isinstance(intr.value, dict):
+                return intr.value
+            if hasattr(intr, "value"):
+                return {"value": intr.value}
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -108,16 +136,7 @@ async def langgraph_events_to_sse(
         SSE-formatted strings.
     """
 
-    def _checkpoint_id_from_state(state: Any) -> Optional[str]:
-        try:
-            cfg = getattr(state, "config", None) or {}
-            configurable = cfg.get("configurable", {}) if isinstance(cfg, dict) else {}
-            cp_id = configurable.get("checkpoint_id")
-            if isinstance(cp_id, str) and cp_id:
-                return cp_id
-        except Exception:
-            return None
-        return None
+    # NOTE: checkpoint helpers live at module scope for reuse.
 
     try:
         async for event in events:
@@ -371,3 +390,38 @@ async def feedback_endpoint(payload: FeedbackRequest, req: Request):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@chat_routes.get("/interrupt")
+async def interrupt_status(
+    thread_id: str = Query(..., description="LangGraph thread id"),
+    checkpoint_id: Optional[str] = Query(
+        None, description="Optional checkpoint_id to time travel / fork from"
+    ),
+):
+    """Return whether the graph is currently paused (HITL interrupt).
+
+    This is used by the frontend to rehydrate the approval UI after refresh.
+    """
+    graph = get_graph()
+
+    configurable: Dict[str, Any] = {"thread_id": thread_id}
+    if checkpoint_id:
+        configurable["checkpoint_id"] = checkpoint_id
+    config = cast(RunnableConfig, {"configurable": configurable})
+
+    state = await graph.aget_state(config)
+    cp_id = _checkpoint_id_from_state(state)
+    payload = _first_interrupt_payload_from_state(state)
+    if payload:
+        return {
+            "thread_id": thread_id,
+            "interrupted": True,
+            "checkpoint_id": cp_id,
+            "payload": payload,
+        }
+    return {
+        "thread_id": thread_id,
+        "interrupted": False,
+        "checkpoint_id": cp_id,
+    }
