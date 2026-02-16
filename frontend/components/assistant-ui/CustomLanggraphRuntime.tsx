@@ -11,8 +11,11 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AuiProvider,
+  Tools,
   useLocalRuntime,
   AssistantRuntimeProvider,
+  useAui,
   type ChatModelAdapter,
   type ChatModelRunOptions,
   type ChatModelRunResult,
@@ -22,6 +25,21 @@ import {
 } from "@assistant-ui/react";
 
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+
+import { appToolkit } from "@/components/assistant-ui/toolkit";
+
+// ---------------------------------------------------------------------------
+// Backend API endpoints (via Next.js proxy)
+// ---------------------------------------------------------------------------
+
+const API_BASE = "/api/be";
+
+const CHAT_STREAM_URL = `${API_BASE}/api/v1/chat/stream`;
+const CHAT_FEEDBACK_URL = `${API_BASE}/api/v1/chat/feedback`;
+const CHAT_INTERRUPT_URL = `${API_BASE}/api/v1/chat/interrupt`;
+
+const threadRepoUrl = (threadId: string) =>
+  `${API_BASE}/api/v1/threads/${encodeURIComponent(threadId)}/repo`;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,7 +159,7 @@ async function fetchInterruptStatus(opts: {
 > {
   try {
     const url = new URL(
-      "/api/be/api/v1/chat/interrupt",
+      CHAT_INTERRUPT_URL,
       typeof window === "undefined" ? "http://localhost" : window.location.origin,
     );
     url.searchParams.set("thread_id", opts.threadId);
@@ -677,7 +695,7 @@ export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
 
         if (feedback) {
           // Resume from HITL interrupt
-          url = "/api/be/api/v1/chat/feedback";
+          url = CHAT_FEEDBACK_URL;
 
           const checkpointId = getCheckpointForParentId(
             unstable_parentId ?? null,
@@ -737,7 +755,7 @@ export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
             return;
           }
 
-          url = "/api/be/api/v1/chat/stream";
+          url = CHAT_STREAM_URL;
           body = JSON.stringify({
             thread_id: threadId,
             checkpoint_id: checkpointId,
@@ -860,7 +878,7 @@ export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
     const threadId = threadIdRef.current;
     (async () => {
       try {
-        const res = await fetch(`/api/be/api/v1/threads/${threadId}/repo`, {
+        const res = await fetch(threadRepoUrl(threadId), {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -919,7 +937,7 @@ export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
       if (timeout) window.clearTimeout(timeout);
       timeout = window.setTimeout(() => {
         const repo = runtime.thread.export();
-        fetch(`/api/be/api/v1/threads/${threadId}/repo`, {
+        fetch(threadRepoUrl(threadId), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ repo }),
@@ -967,11 +985,19 @@ export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
       }}
     >
       <AssistantRuntimeProvider runtime={runtime}>
-        <HitlComposerListener onSend={resetInterrupt} />
-        {children}
+        <ToolRegistryProvider>
+          <HitlComposerListener onSend={resetInterrupt} />
+          {children}
+        </ToolRegistryProvider>
       </AssistantRuntimeProvider>
     </HitlContext.Provider>
   );
+}
+
+function ToolRegistryProvider({ children }: { children: ReactNode }) {
+  // Extend the existing AssistantRuntimeProvider aui context with tool UIs.
+  const aui = useAui({ tools: Tools({ toolkit: appToolkit }) });
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 }
 
 function HitlComposerListener({ onSend }: { onSend: () => void }) {
