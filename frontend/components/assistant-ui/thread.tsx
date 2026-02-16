@@ -33,7 +33,9 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 
-export const Thread: FC = () => {
+export const Thread: FC<{ showWelcome?: boolean }> = ({
+  showWelcome = true,
+}) => {
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
@@ -45,9 +47,11 @@ export const Thread: FC = () => {
         turnAnchor="top"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
       >
-        <AuiIf condition={({ thread }) => thread.isEmpty}>
-          <ThreadWelcome />
-        </AuiIf>
+        {showWelcome ? (
+          <AuiIf condition={({ thread }) => thread.isEmpty}>
+            <ThreadWelcome />
+          </AuiIf>
+        ) : null}
 
         <ThreadPrimitive.Messages
           components={{
