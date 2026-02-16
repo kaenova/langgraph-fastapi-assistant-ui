@@ -395,7 +395,13 @@ async function* parseSseStream(
 // Runtime Provider
 // ---------------------------------------------------------------------------
 
-export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
+export function CustomLanggraphRuntime({
+  children,
+  threadId,
+}: {
+  children: ReactNode;
+  threadId?: string;
+}) {
   const [pendingInterrupt, setPendingInterrupt] =
     useState<InterruptPayload | null>(null);
   const pendingInterruptMessageIdRef = useRef<string | null>(null);
@@ -419,22 +425,27 @@ export function CustomLanggraphRuntime({ children }: { children: ReactNode }) {
 
   // Persistent thread_id for the session
   const threadIdRef = useRef<string>(
-    typeof window === "undefined"
-      ? "default"
-      : (new URLSearchParams(window.location.search).get("thread") ??
-          localStorage.getItem("aui_thread_id") ??
-          crypto.randomUUID()),
+    threadId ??
+      (typeof window === "undefined"
+        ? "default"
+        : (new URLSearchParams(window.location.search).get("thread") ??
+            localStorage.getItem("aui_thread_id") ??
+            crypto.randomUUID())),
   );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (threadId) {
+      threadIdRef.current = threadId;
+      return;
+    }
     localStorage.setItem("aui_thread_id", threadIdRef.current);
     const url = new URL(window.location.href);
     if (url.searchParams.get("thread") !== threadIdRef.current) {
       url.searchParams.set("thread", threadIdRef.current);
       window.history.replaceState({}, "", url.toString());
     }
-  }, []);
+  }, [threadId]);
 
   const lgCheckpointByMessageIdRef = useRef<Record<string, string>>({});
   const lastRunCheckpointIdRef = useRef<string | null>(null);
