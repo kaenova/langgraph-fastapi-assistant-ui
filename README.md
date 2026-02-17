@@ -18,7 +18,10 @@ Assistant UI (React) -> LocalRuntime adapter -> Next.js proxy (/api/be/*)
 
 CosmosDB containers:
   - langgraph_checkpoints  (LangGraph state)
-  - thread_repos           (Assistant UI MessageRepository export)
+  - thread_repos           (Assistant UI MessageRepository pointer metadata)
+
+Azure Blob Storage:
+  - thread_repos/*         (Assistant UI MessageRepository payloads)
 ```
 
 Key rule: the backend is authoritative.
@@ -144,13 +147,21 @@ Important backend detail (HITL correctness): when inspecting the final graph sta
 
 Assistant UI keeps a message DAG (branches/edits). To make reload/edit/branch survive refresh, persist the exported repository server-side.
 
+Behavior (this repo):
+
+- Repo payloads are gzipped JSON blobs stored in Azure Blob Storage under `thread_repos/`.
+- CosmosDB stores only pointer metadata (`repo_blob_name`, size, hash) to avoid the 2MB item limit.
+- The `GET/PUT /threads/{thread_id}/repo` API contract is unchanged for the frontend.
+- Legacy inline `repo` values (if present) are still readable as a fallback.
+
 Copy/create:
 
 - `backend/routes/thread_repo.py`
   - `GET /api/v1/threads/{thread_id}/repo`
   - `PUT /api/v1/threads/{thread_id}/repo`
 - `backend/lib/thread_repo_store.py`
-  - CosmosDB container `thread_repos` partitioned by `/thread_id`
+  - CosmosDB container `thread_repos` partitioned by `/thread_id` (pointer metadata)
+  - Repo payloads stored in Azure Blob Storage under `thread_repos/`
 
 Wire it in `backend/main.py`:
 
@@ -165,6 +176,11 @@ For the checkpointer + repo store (CosmosDB), set:
 - `COSMOS_ENDPOINT`
 - `COSMOS_KEY`
 - `COSMOS_DATABASE_NAME`
+
+For repo payloads in Blob Storage, set:
+
+- `AZURE_STORAGE_CONNECTION_STRING`
+- `AZURE_STORAGE_CONTAINER_NAME`
 
 Your model/tool environment variables depend on your graph/tools (see `backend/agent/tools.py`).
 
@@ -184,7 +200,8 @@ Copy/create:
 
 What it does:
 
-- Maintains a stable `thread_id` (URL `?thread=` + `localStorage`)
+- Maintains a stable `thread_id` (URL `?thread=` + `localStorage` by default)
+- Accepts an optional `threadId` prop to avoid URL thread params
 - Implements `ChatModelAdapter.run()` that calls:
   - `/api/be/api/v1/chat/stream` for normal runs
   - `/api/be/api/v1/chat/feedback` to resume interrupts
@@ -201,6 +218,30 @@ Branching/editing correctness:
 
 - For any user message send/edit/reload, compute `checkpoint_id` from the parent message's stored metadata.
 - Never fall back to "latest checkpoint" for existing threads; missing checkpoint data should be treated as an error (otherwise branches merge).
+
+### 5.5) Frontend: welcome page -> chat routing (clean URL)
+
+If you want a dedicated welcome page with no `thread_id` in the URL and only
+create a thread on first send, this repo implements a simple handoff flow:
+
+- `/` shows a welcome UI with an input and suggestions
+- On submit: generate a `thread_id`, store the first message in `sessionStorage`,
+  then navigate to `/chat/{thread_id}`
+- `/chat/{thread_id}` mounts the Assistant runtime and auto-sends the pending
+  message via `thread.append({ startRun: true })`
+
+Reference files:
+
+- `frontend/app/page.tsx` -> renders `Welcome`
+- `frontend/app/welcome.tsx` -> welcome UI + submit handler
+- `frontend/app/chat/[threadId]/page.tsx` -> loads runtime, sends pending message
+- `frontend/app/assistant.tsx` -> passes `threadId` into runtime
+- `frontend/components/assistant-ui/CustomLanggraphRuntime.tsx`
+  -> respects `threadId` prop and skips URL mutation
+- `frontend/components/assistant-ui/thread.tsx` -> disables in-thread welcome UI
+
+If you prefer to keep the legacy `?thread=` flow, omit the new welcome/chat
+pages and keep `CustomLanggraphRuntime` unmodified.
 
 ### 6) Frontend: render tool calls + HITL approval UI
 
@@ -287,6 +328,10 @@ Backend:
 Frontend:
 
 - `frontend/app/api/be/[...path]/route.ts`
+- `frontend/app/page.tsx` (welcome entry)
+- `frontend/app/welcome.tsx` (welcome UI)
+- `frontend/app/chat/[threadId]/page.tsx` (chat route)
+- `frontend/app/assistant.tsx` (passes `threadId`)
 - `frontend/components/assistant-ui/CustomLanggraphRuntime.tsx`
 - `frontend/components/assistant-ui/thread.tsx`
 - `frontend/components/assistant-ui/tool-fallback.tsx`
