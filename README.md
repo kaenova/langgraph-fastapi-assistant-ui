@@ -57,17 +57,44 @@ export BACKEND_URL="http://localhost:8000"
 
 If you want to port this integration into an existing codebase quickly, you can have an LLM agent add this repo as a reference **submodule** and generate a concrete integration plan from the submodule README.
 
-### Paste this prompt into your LLM agent (it will add the submodule)
+### Paste these 2 prompts into your LLM agent (run them in order)
 
-Replace paths/placeholders, then send the full prompt as-is:
+Replace paths/placeholders, then copy/paste each prompt as-is.
+
+#### Step 1 - Build (adds the reference submodule)
 
 ```text
-You are a senior full-stack engineer. Your job is to create an integration plan and implementation outline based on the current project and the example project based on the submodule.
+You are a senior full-stack engineer. Your job in this step is ONLY to add a reference repo as a git submodule.
 
 Context:
 - Target repository root: <ABSOLUTE_PATH_TO_MY_REPO>
 - Reference repo URL: https://github.com/kaenova/langgraph-fastapi-assistant-ui
 - Reference submodule path to add: vendor/assistant-ui-langgraph-reference
+
+Task:
+In <ABSOLUTE_PATH_TO_MY_REPO>, add the reference repo as a git submodule at vendor/assistant-ui-langgraph-reference and initialize it:
+
+  mkdir -p vendor
+  git submodule add https://github.com/kaenova/langgraph-fastapi-assistant-ui vendor/assistant-ui-langgraph-reference
+  git submodule update --init --recursive
+
+Output requirements:
+- Show the exact commands you ran.
+- Confirm the submodule path exists and includes the expected files:
+  - vendor/assistant-ui-langgraph-reference/README.md
+  - vendor/assistant-ui-langgraph-reference/backend/routes/chat.py
+  - vendor/assistant-ui-langgraph-reference/frontend/components/assistant-ui/CustomLanggraphRuntime.tsx
+- Do NOT propose any integration changes yet.
+```
+
+#### Step 2 - Plan (use the submodule as the reference and generate the integration plan)
+
+```text
+You are a senior full-stack engineer. Your job is to create an integration plan and implementation outline based on the current project and the example project in a reference submodule.
+
+Context:
+- Target repository root: <ABSOLUTE_PATH_TO_MY_REPO>
+- Reference submodule path: vendor/assistant-ui-langgraph-reference
 - Stack constraints:
   - Backend: FastAPI + LangGraph (Python 3.12+)
   - Frontend: Next.js (TypeScript)
@@ -78,12 +105,10 @@ Context:
   - Support assistant-ui features: reload/edit/branching using checkpoint time-travel/forking
   - Persist assistant-ui MessageRepository server-side keyed by thread_id
 
-First, in <ABSOLUTE_PATH_TO_MY_REPO>, add the reference repo as a git submodule at vendor/assistant-ui-langgraph-reference:
+Precondition:
+- The reference repo has already been added as a submodule at vendor/assistant-ui-langgraph-reference.
 
-  git submodule add https://github.com/kaenova/langgraph-fastapi-assistant-ui vendor/assistant-ui-langgraph-reference
-  git submodule update --init --recursive
-
-Then, read these docs from the submodule:
+First, read these docs from the submodule:
 
 1) vendor/assistant-ui-langgraph-reference/README.md
 2) vendor/assistant-ui-langgraph-reference/backend/routes/chat.py (SSE contract)
