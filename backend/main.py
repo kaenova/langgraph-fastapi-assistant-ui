@@ -17,6 +17,8 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.attachment import attachment_routes
+from routes.assistant import assistant_routes
+from routes.thread import thread_routes
 
 logging.getLogger("azure.cosmos._cosmos_http_logging_policy").setLevel(logging.WARNING)
 
@@ -37,6 +39,16 @@ app.include_router(
     attachment_routes,
     prefix="/api/v1/attachments",
     tags=["attachments"],
+)
+app.include_router(
+    thread_routes,
+    prefix="/api/v1/threads",
+    tags=["threads"],
+)
+app.include_router(
+    assistant_routes,
+    prefix="/api/v1/assistant",
+    tags=["assistant"],
 )
 
 if __name__ == "__main__":

@@ -106,6 +106,8 @@ async function handleProxyRequest(
     if (
       contentType?.includes("text/stream") ||
       contentType?.includes("application/stream") ||
+      contentType?.includes("application/x-ndjson") ||
+      contentType?.includes("application/ndjson") ||
       contentType?.includes("text/event-stream") ||
       transferEncoding === "chunked"
     ) {

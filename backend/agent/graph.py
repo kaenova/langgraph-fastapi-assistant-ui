@@ -2,7 +2,13 @@
 
 from typing import Annotated, Dict, List, Literal, TypedDict
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+)
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
@@ -76,17 +82,40 @@ def call_model(state: AgentState, config=None) -> Dict[str, List[BaseMessage]]:
 
     print(messages)
 
-    prompty = get_prompty_client()
-    prompt = prompty.get_prompt("Main Chat Agent")
-    if prompt is None:
-        prompt = FALLBACK_SYSTEM_PROMPT
+    prompt = FALLBACK_SYSTEM_PROMPT
+    try:
+        prompty = get_prompty_client()
+        prompt_candidate = prompty.get_prompt("Main Chat Agent")
+        if prompt_candidate and prompt_candidate.strip():
+            prompt = prompt_candidate
+    except RuntimeError as exc:
+        print(f"Warning: failed to load prompty prompt ({exc}); using fallback.")
 
     system_msg = SystemMessage(content=prompt.strip())
     messages = [system_msg] + messages
 
     # Bind tools to the model
     model_with_tools = model.bind_tools(AVAILABLE_TOOLS)
-    response = model_with_tools.invoke(messages)
+    response_chunk: AIMessageChunk | None = None
+    for chunk in model_with_tools.stream(messages):
+        if not isinstance(chunk, AIMessageChunk):
+            continue
+        if response_chunk is None:
+            response_chunk = chunk
+        else:
+            response_chunk += chunk
+
+    if response_chunk is None:
+        response = model_with_tools.invoke(messages)
+    else:
+        response = AIMessage(
+            id=response_chunk.id,
+            content=response_chunk.content,
+            additional_kwargs=response_chunk.additional_kwargs,
+            response_metadata=response_chunk.response_metadata,
+            tool_calls=response_chunk.tool_calls,
+            invalid_tool_calls=response_chunk.invalid_tool_calls,
+        )
 
     # Return the response
     return {"messages": [response]}

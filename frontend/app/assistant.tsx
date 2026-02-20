@@ -1,18 +1,17 @@
 "use client";
 
+import type { FC } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
 
-export const Assistant = () => {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({
-      api: "/api/chat",
-    }),
-  });
+import { Thread } from "@/components/assistant-ui/thread";
+import { useWeatherAssistantRuntime } from "@/app/runtime-provider";
+
+interface AssistantProps {
+  threadId?: string | null;
+}
+
+export const Assistant: FC<AssistantProps> = ({ threadId = null }) => {
+  const runtime = useWeatherAssistantRuntime(threadId);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

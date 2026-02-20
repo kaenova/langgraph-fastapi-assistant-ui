@@ -48,6 +48,23 @@
      - `messages: [{ parentId, message, runConfig? }]`
    - Decision: persist at minimum `id`, `parent_id`, message payload (`role/content/status/metadata`), and optional `run_config`; treat `branch_id` as optional denormalized index only.
 
+## Implementation Checklist (Execution Order)
+### (a) Exploration checkpoints
+- [x] Confirm runtime API choice: `useExternalStoreRuntime` supports required callbacks (`onNew`, `onEdit`, `onReload`, `onCancel`, `onAddToolResult`, `onResumeToolCall`, `setMessages`).
+- [x] Confirm HITL source of truth: LangGraph `interrupt(...)` + `Command(resume=...)` is the resume model.
+- [x] Confirm branching persistence shape: `ExportedMessageRepository` with `headId` and parent-linked messages.
+- [x] Confirm welcome bootstrap invariant: no thread ID on welcome, create thread before first send.
+
+### (b) Implementation steps
+- [x] Migrate frontend runtime to `useExternalStoreRuntime` and wire required callbacks.
+- [x] Implement thread management wiring (**backend CRUD + frontend create/get-state client**; dedicated thread-list UI still optional follow-up).
+- [x] Implement first-send bootstrap in strict order: create thread -> navigate `/chat/{threadId}` -> send/stream first message.
+- [x] Add backend routes: `thread.py` (CRUD/state) and `assistant.py` (command + stream ops), then register routers in `backend/main.py`.
+- [x] Map assistant commands to LangGraph execution (`add-message`, `resume-tool-call`, optional `add-tool-result`) with streaming ops (`set`, `append-text`).
+- [x] Implement weather HITL UI/actions (approve/decline/change-args) and resume via `onResumeToolCall`.
+- [x] Implement edit/regenerate branching with parent-child lineage compatible with `BranchPickerPrimitive`.
+- [x] Re-run shared fixture contract checks (`scripts/test_backend_contract.py`, `scripts/test_frontend_contract.mjs`).
+
 ## What Needs Done (Execution Plan)
 1. **Frontend runtime migration**
    - Replace `useChatRuntime` with a dedicated runtime provider using `useExternalStoreRuntime`.
@@ -278,3 +295,13 @@
 - Proposal documented: **done**
 - No-server integration hypothesis scripts: **done**
 - Welcome lazy thread-create + navigate requirement added to plan/fixture/scripts: **done**
+
+## Latest Streaming Debug Updates
+- Frontend proxy stream pass-through expanded to include NDJSON content types:
+  - `application/x-ndjson`
+  - `application/ndjson`
+- Backend assistant stream parser hardened:
+  - Accept streamed model events with `AIMessageChunk` **and** `AIMessage`
+  - Extract text from both string content and list/delta-style chunk payloads
+  - Do not drop valid chunks when `langgraph_node` metadata is absent
+- LangGraph model node switched from `.invoke(...)` to `.stream(...)` accumulation so token events can propagate through `graph.stream(..., stream_mode="messages")`.

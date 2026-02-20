@@ -258,7 +258,7 @@ def weather(city: str) -> str:
     return f"{city} weather is sunny today."
 
 
-tool_generator.append(get_current_time)
+tool_generator.append(weather)
 
 
 print(f"✓ Tools loaded. Tools available: {[tool.name for tool in tool_generator]}")
