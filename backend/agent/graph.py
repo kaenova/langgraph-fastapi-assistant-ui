@@ -8,8 +8,6 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
-from lib.checkpointer import checkpointer
-
 from .model import model
 from .prompt import FALLBACK_SYSTEM_PROMPT, get_prompty_client
 from .tools import AVAILABLE_TOOLS
@@ -125,9 +123,7 @@ def get_graph():
     # Add edge from tools back to agent
     workflow.add_edge("tools", "agent")
 
-    checkpointer_ins = checkpointer()
-
     # Compile the graph
-    graph = workflow.compile(checkpointer=checkpointer_ins)
+    graph = workflow.compile()
 
     return graph
