@@ -1,0 +1,8 @@
+0:"Hello from data-stream"
+0:" with a second delta."
+b:{"toolCallId":"call_1","toolName":"lookup"}
+c:{"toolCallId":"call_1","argsTextDelta":"{\"query\":\"status\""}
+c:{"toolCallId":"call_1","argsTextDelta":"}"}
+a:{"toolCallId":"call_1","result":{"ok":true,"value":"green"}}
+aui-state:[{"type":"set","path":["draft","status"],"value":"green"}]
+d:{"finishReason":"stop","usage":{"promptTokens":12,"completionTokens":27}}

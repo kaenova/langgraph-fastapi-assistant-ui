@@ -1,0 +1,23 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "assistant-ui-docs": {
+      "type": "local",
+      "command": ["/root/.bun/bin/bunx", "-y", "@assistant-ui/mcp-docs-server"]
+    },
+    "searxng": {
+      "type": "local",
+      "command": ["/root/.bun/bin/bunx", "-y", "mcp-searxng"],
+      "environment": {
+        "SEARXNG_URL": "https://common-searxng-a4bkbaewbsfsf4cw.indonesiacentral-01.azurewebsites.net/"
+      }
+    },
+    "firecrawl": {
+      "type": "local",
+      "command": ["/root/.bun/bin/bunx", "-y", "firecrawl-mcp"],
+      "environment": {
+        "FIRECRAWL_API_URL": "https://firecrawl.kaenova.my.id"
+      }
+    }
+  }
+}
