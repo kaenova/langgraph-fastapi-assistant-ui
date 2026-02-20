@@ -1,0 +1,1 @@
+I have Next.js and Fast API application. Read the AGENTS.md first. I want you to implement Assistant UI - Local Runtime approeach to be integrated with Fast API backend which have langgraph and its tooling. You can change anything in the frontend and backend, but not with the general langgraph flow

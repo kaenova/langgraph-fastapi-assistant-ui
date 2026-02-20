@@ -248,6 +248,22 @@ def generate_image(prompt: str, size: str, style: str) -> str:
 tool_generator.append(generate_image)
 
 
+@tool
+def weather(city: str) -> str:
+    """
+    Get the weather for a given city.
+
+    Args:
+        city (str): The name of the city.
+
+    Returns:
+        str: The weather information for the city.
+    """
+    return f"{city} is sunny."
+
+
+tool_generator.append(weather)
+
 print(f"✓ Tools loaded. Tools available: {[tool.name for tool in tool_generator]}")
 # List of available tools
 AVAILABLE_TOOLS = tool_generator
