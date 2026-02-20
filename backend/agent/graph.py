@@ -76,9 +76,13 @@ def call_model(state: AgentState, config=None) -> Dict[str, List[BaseMessage]]:
 
     print(messages)
 
-    prompty = get_prompty_client()
-    prompt = prompty.get_prompt("Main Chat Agent")
-    if prompt is None:
+    try:
+        prompty = get_prompty_client()
+        prompt = prompty.get_prompt("Main Chat Agent")
+        if prompt is None:
+            prompt = FALLBACK_SYSTEM_PROMPT
+    except Exception as e:
+        print(f"Failed to get prompt: {e}")
         prompt = FALLBACK_SYSTEM_PROMPT
 
     system_msg = SystemMessage(content=prompt.strip())
