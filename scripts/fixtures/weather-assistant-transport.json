@@ -1,0 +1,353 @@
+{
+  "scenario": "external-store-runtime-fastapi-langgraph-weather-hitl",
+  "thread": {
+    "id": null,
+    "title": null,
+    "status": "draft"
+  },
+  "initial_state": {
+    "thread": {
+      "id": null,
+      "title": null,
+      "status": "draft"
+    },
+    "messages": [],
+    "interrupts": [],
+    "ui": {
+      "route": "/"
+    }
+  },
+  "commands": [
+    {
+      "type": "add-message",
+      "message": {
+        "id": "msg_user_1",
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "What is the weather in Jakarta today?"
+          }
+        ]
+      }
+    },
+    {
+      "type": "add-tool-result",
+      "toolCallId": "tool_weather_1",
+      "result": {
+        "decision": "change-args",
+        "args": {
+          "city": "Bandung",
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "type": "add-tool-result",
+      "toolCallId": "tool_weather_1",
+      "result": {
+        "decision": "approve",
+        "args": {
+          "city": "Bandung",
+          "unit": "celsius"
+        }
+      }
+    }
+  ],
+  "stream_operations": [
+    [
+      {
+        "type": "set",
+        "path": [
+          "thread",
+          "id"
+        ],
+        "value": "thread-weather-001"
+      },
+      {
+        "type": "set",
+        "path": [
+          "thread",
+          "title"
+        ],
+        "value": "Weather HITL Demo"
+      },
+      {
+        "type": "set",
+        "path": [
+          "thread",
+          "status"
+        ],
+        "value": "regular"
+      },
+      {
+        "type": "set",
+        "path": [
+          "ui",
+          "route"
+        ],
+        "value": "/chat/thread-weather-001"
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          0
+        ],
+        "value": {
+          "id": "msg_user_1",
+          "role": "human",
+          "branch_id": "branch-main",
+          "content": [
+            {
+              "type": "text",
+              "text": "What is the weather in Jakarta today?"
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          1
+        ],
+        "value": {
+          "id": "msg_ai_stream_1",
+          "role": "ai",
+          "branch_id": "branch-main",
+          "content": [
+            {
+              "type": "text",
+              "text": ""
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "type": "append-text",
+        "path": [
+          "messages",
+          1,
+          "content",
+          0,
+          "text"
+        ],
+        "value": "Let me check "
+      },
+      {
+        "type": "append-text",
+        "path": [
+          "messages",
+          1,
+          "content",
+          0,
+          "text"
+        ],
+        "value": "the latest weather details."
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          2
+        ],
+        "value": {
+          "id": "msg_ai_tool_1",
+          "role": "ai",
+          "branch_id": "branch-main",
+          "content": [
+            {
+              "type": "tool-call",
+              "tool_call_id": "tool_weather_1",
+              "name": "weather",
+              "args": {
+                "city": "Jakarta",
+                "unit": "celsius"
+              },
+              "status": "requires-action"
+            }
+          ]
+        }
+      },
+      {
+        "type": "set",
+        "path": [
+          "interrupts",
+          0
+        ],
+        "value": {
+          "id": "interrupt_weather_1",
+          "tool_call_id": "tool_weather_1",
+          "tool_name": "weather",
+          "args": {
+            "city": "Jakarta",
+            "unit": "celsius"
+          },
+          "actions": [
+            "approve",
+            "decline",
+            "change-args"
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          3
+        ],
+        "value": {
+          "id": "msg_tool_result_1",
+          "role": "tool",
+          "tool_call_id": "tool_weather_1",
+          "branch_id": "branch-main",
+          "content": [
+            {
+              "type": "tool-result",
+              "tool_call_id": "tool_weather_1",
+              "result": {
+                "decision": "change-args",
+                "args": {
+                  "city": "Bandung",
+                  "unit": "celsius"
+                },
+                "approved": true,
+                "source": "frontend-hitl"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          4
+        ],
+        "value": {
+          "id": "msg_ai_tool_1_confirmed",
+          "role": "ai",
+          "branch_id": "branch-main",
+          "content": [
+            {
+              "type": "tool-call",
+              "tool_call_id": "tool_weather_1",
+              "name": "weather",
+              "args": {
+                "city": "Bandung",
+                "unit": "celsius"
+              },
+              "status": "complete",
+              "result": {
+                "city": "Bandung",
+                "temperature_c": 28,
+                "condition": "sunny"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "set",
+        "path": [
+          "interrupts"
+        ],
+        "value": []
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          5
+        ],
+        "value": {
+          "id": "msg_ai_final_1",
+          "role": "ai",
+          "parent_id": "msg_user_1",
+          "branch_id": "branch-main",
+          "content": [
+            {
+              "type": "text",
+              "text": "It is 28°C and sunny in Bandung right now."
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          6
+        ],
+        "value": {
+          "id": "msg_user_edit_1",
+          "role": "human",
+          "parent_id": "msg_user_1",
+          "branch_id": "branch-edit-1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Actually, check Surabaya instead."
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "type": "set",
+        "path": [
+          "messages",
+          7
+        ],
+        "value": {
+          "id": "msg_ai_regen_1",
+          "role": "ai",
+          "parent_id": "msg_user_edit_1",
+          "branch_id": "branch-edit-1",
+          "content": [
+            {
+              "type": "text",
+              "text": "In Surabaya it is 31°C with humid conditions."
+            }
+          ]
+        }
+      }
+    ]
+  ],
+  "expectations": {
+    "welcome_page_when_messages_empty": true,
+    "thread_id_initially_null": true,
+    "created_thread_id": "thread-weather-001",
+    "navigate_to": "/chat/thread-weather-001",
+    "requires_action_tool_call_ids": [
+      "tool_weather_1"
+    ],
+    "branch_ids": [
+      "branch-main",
+      "branch-edit-1"
+    ],
+    "edit_origin_message_id": "msg_user_1",
+    "regenerate_message_id": "msg_ai_regen_1",
+    "regenerate_parent_id": "msg_user_edit_1",
+    "weather_city_after_change": "Bandung",
+    "final_message_count": 8
+  }
+}
