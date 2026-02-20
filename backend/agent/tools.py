@@ -248,6 +248,19 @@ def generate_image(prompt: str, size: str, style: str) -> str:
 tool_generator.append(generate_image)
 
 
+@tool
+def weather(city: str) -> str:
+    """Get the current date and time.
+
+    Returns:
+        str: Current date and time in ISO format
+    """
+    return f"{city} weather is sunny today."
+
+
+tool_generator.append(get_current_time)
+
+
 print(f"✓ Tools loaded. Tools available: {[tool.name for tool in tool_generator]}")
 # List of available tools
 AVAILABLE_TOOLS = tool_generator
