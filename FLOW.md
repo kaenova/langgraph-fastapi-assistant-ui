@@ -3,7 +3,8 @@
 ## End-to-end flow (current implementation)
 
 ### 1) Entry and thread bootstrap
-- User lands on `/` (`frontend/app/page.tsx`) and sees `WelcomePage` (`frontend/app/welcome-page.tsx`).
+- Route files in `frontend/app` are thin wrappers; reusable custom frontend template logic lives in `frontend/lib/assistant-template/`.
+- User lands on `/` (`frontend/app/page.tsx`) and sees `WelcomePage` (`frontend/lib/assistant-template/welcome-page.tsx`).
 - Welcome uses Assistant UI `ComposerPrimitive` (same composer UX as chat, including attachments).
 - On send from welcome composer:
   - Frontend creates `threadId` via `crypto.randomUUID()`.
@@ -12,7 +13,7 @@
   - Redirects to `/chat/{threadId}` (no query params).
 
 ### 2) Chat page runtime wiring
-- `/chat/[threadId]` renders `LocalRuntimeProvider` (`frontend/components/assistant-ui/runtime-provider.tsx`).
+- `/chat/[threadId]` renders `LocalRuntimeProvider` (`frontend/lib/assistant-template/runtime-provider.tsx`).
 - Provider uses:
   - `useLocalRuntime` for model execution.
   - `useLocalRuntime(..., { adapters: { history } })` to load/append message history from backend.
