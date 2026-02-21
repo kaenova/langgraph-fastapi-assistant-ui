@@ -18,6 +18,7 @@ import {
   ComposerAttachments,
 } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { visionImageAttachmentAdapter } from "@/lib/vision-attachment-adapter";
 import { Button } from "@/components/ui/button";
 
 const THREAD_API_INITIALIZE = "/api/be/api/v1/threads/initialize";
@@ -89,7 +90,9 @@ export const WelcomePage = () => {
     }),
     [router],
   );
-  const runtime = useLocalRuntime(modelAdapter);
+  const runtime = useLocalRuntime(modelAdapter, {
+    adapters: { attachments: visionImageAttachmentAdapter },
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

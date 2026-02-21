@@ -18,6 +18,7 @@ import { createAssistantStream } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 import { Thread } from "@/components/assistant-ui/thread";
+import { visionImageAttachmentAdapter } from "@/lib/vision-attachment-adapter";
 
 type BackendEvent =
   | { type: "text_delta"; delta: string }
@@ -513,7 +514,10 @@ export const LocalRuntimeProvider = ({
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: () =>
       useLocalRuntime(modelAdapter, {
-        adapters: { history: historyAdapter },
+        adapters: {
+          history: historyAdapter,
+          attachments: visionImageAttachmentAdapter,
+        },
       }),
     adapter: remoteThreadListAdapter,
   });

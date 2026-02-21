@@ -18,6 +18,7 @@ from lib.thread_store import thread_store
 
 
 chat_routes = APIRouter()
+MAX_INLINE_IMAGE_URL_CHARS = 2_000_000
 
 
 class RunRequest(BaseModel):
@@ -55,6 +56,88 @@ def _extract_text_parts(parts: Any) -> str:
         if isinstance(part, dict) and part.get("type") == "text":
             texts.append(str(part.get("text", "")))
     return "\n".join(texts).strip()
+
+
+def _append_user_content_block(part: Any, blocks: list[dict[str, Any]]) -> bool:
+    """Append a user part as LangChain standard content blocks and return image flag."""
+    if not isinstance(part, dict):
+        return False
+
+    part_type = part.get("type")
+    if part_type == "text":
+        text = str(part.get("text", ""))
+        if text:
+            blocks.append({"type": "text", "text": text})
+        return False
+
+    if part_type == "image":
+        image_data = part.get("image")
+        if isinstance(image_data, str) and image_data:
+            if len(image_data) > MAX_INLINE_IMAGE_URL_CHARS:
+                blocks.append(
+                    {
+                        "type": "text",
+                        "text": (
+                            "[Image omitted: payload too large for model request. "
+                            "Please upload a smaller image.]"
+                        ),
+                    }
+                )
+                return False
+            blocks.append({"type": "image", "url": image_data})
+            return True
+        return False
+
+    if part_type == "image_url":
+        image_url = part.get("image_url")
+        if isinstance(image_url, dict):
+            image_data = image_url.get("url")
+            if isinstance(image_data, str) and image_data:
+                if len(image_data) > MAX_INLINE_IMAGE_URL_CHARS:
+                    blocks.append(
+                        {
+                            "type": "text",
+                            "text": (
+                                "[Image omitted: payload too large for model request. "
+                                "Please upload a smaller image.]"
+                            ),
+                        }
+                    )
+                    return False
+                blocks.append({"type": "image", "url": image_data})
+                return True
+    return False
+
+
+def _to_langchain_user_content_blocks(
+    parts: Any, attachments: Any = None
+) -> tuple[list[dict[str, Any]], bool]:
+    """Convert user content + attachments into LangChain standard content blocks."""
+    part_list: list[Any]
+    if isinstance(parts, str):
+        part_list = [{"type": "text", "text": parts}] if parts else []
+    elif isinstance(parts, list):
+        part_list = parts
+    else:
+        part_list = []
+
+    content_blocks: list[dict[str, Any]] = []
+    has_image = False
+
+    for part in part_list:
+        has_image = _append_user_content_block(part, content_blocks) or has_image
+
+    if isinstance(attachments, list):
+        for attachment in attachments:
+            if not isinstance(attachment, dict):
+                continue
+            attachment_content = attachment.get("content")
+            if not isinstance(attachment_content, list):
+                continue
+            for part in attachment_content:
+                has_image = _append_user_content_block(part, content_blocks) or has_image
+
+    return content_blocks, has_image
 
 
 def _extract_tool_call_parts(parts: Any) -> list[dict[str, Any]]:
@@ -114,13 +197,27 @@ def _to_langchain_messages(messages: list[dict[str, Any]]) -> list[BaseMessage]:
     for message in messages:
         role = message.get("role")
         content = message.get("content")
+        attachments = message.get("attachments")
 
         if role == "system":
             converted.append(SystemMessage(content=_extract_text_parts(content)))
             continue
 
         if role == "user":
-            converted.append(HumanMessage(content=_extract_text_parts(content)))
+            user_content_blocks, has_image = _to_langchain_user_content_blocks(
+                content, attachments
+            )
+            if has_image:
+                converted.append(HumanMessage(content_blocks=user_content_blocks))
+                continue
+            text = "\n".join(
+                str(block.get("text", ""))
+                for block in user_content_blocks
+                if block.get("type") == "text"
+            ).strip()
+            converted.append(
+                HumanMessage(content=text)
+            )
             continue
 
         if role == "assistant":

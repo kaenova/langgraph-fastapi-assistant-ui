@@ -16,6 +16,7 @@
 - Provider uses:
   - `useLocalRuntime` for model execution.
   - `useLocalRuntime(..., { adapters: { history } })` to load/append message history from backend.
+  - `useLocalRuntime(..., { adapters: { attachments } })` with a vision image adapter that compresses large images and converts them to base64 data URLs.
   - `unstable_useRemoteThreadListRuntime` for thread lifecycle API integration.
 - Provider ensures current thread exists, switches runtime to that thread, then renders `Thread`.
 - Initial welcome message (if any) is appended via `useThreadRuntime().append(...)` only when:
@@ -28,6 +29,8 @@
   - `POST /api/be/api/v1/threads/{threadId}/runs/stream`
   - payload: `{ messages, runConfig }`.
 - Backend (`backend/routes/chat.py`) converts assistant-ui messages to LangChain messages.
+- User image parts are mapped from both `message.content` and top-level `message.attachments[].content` into LangChain **standard content blocks** (`{ type: "image", url: "data:image/..." }`) so vision-capable models can consume base64 image inputs.
+- Backend guards oversized inline image data and omits it with a user-visible text note to avoid upstream body-size validation errors.
 - Backend invokes `model.bind_tools(AVAILABLE_TOOLS).astream(...)` and auto-executes emitted tool calls server-side.
 - Backend streams SSE EventStream events (`text/event-stream`) back to frontend:
   - `text_delta`
