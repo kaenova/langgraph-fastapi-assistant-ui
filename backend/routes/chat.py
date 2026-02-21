@@ -1,8 +1,7 @@
-"""Chat run routes with EventStream streaming and HITL tool handling."""
+"""Chat run routes with EventStream streaming and automatic tool handling."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -109,86 +108,6 @@ def _find_tool(name: str):
     return None
 
 
-def _apply_human_tool_decisions(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Apply approve/reject + edited args decisions before model call."""
-    if not messages:
-        return messages
-    if messages[-1].get("role") != "tool":
-        return messages
-
-    # Find preceding assistant tool-call message.
-    assistant_tool_message: dict[str, Any] | None = None
-    for candidate in reversed(messages[:-1]):
-        if candidate.get("role") != "assistant":
-            continue
-        if _extract_tool_call_parts(candidate.get("content")):
-            assistant_tool_message = candidate
-            break
-    if assistant_tool_message is None:
-        return messages
-
-    tool_call_map = {
-        part.get("toolCallId"): part
-        for part in _extract_tool_call_parts(assistant_tool_message.get("content"))
-    }
-
-    rewritten_tool_parts: list[dict[str, Any]] = []
-    for part in _extract_tool_result_parts(messages[-1].get("content")):
-        tool_call_id = str(part.get("toolCallId", ""))
-        base_tool_call = tool_call_map.get(tool_call_id, {})
-        base_args = base_tool_call.get("args") if isinstance(base_tool_call, dict) else {}
-        tool_name = str(base_tool_call.get("toolName", ""))
-        result_payload = part.get("result")
-
-        if isinstance(result_payload, dict) and "decision" in result_payload:
-            decision = str(result_payload.get("decision", "reject")).lower()
-            edited_args = result_payload.get("editedArgs")
-            if isinstance(edited_args, dict):
-                call_args = edited_args
-            elif isinstance(base_args, dict):
-                call_args = base_args
-            else:
-                call_args = {}
-
-            if decision == "approve":
-                tool = _find_tool(tool_name)
-                if tool is None:
-                    execution_result: Any = {
-                        "status": "error",
-                        "error": f"Tool '{tool_name}' not found",
-                    }
-                else:
-                    try:
-                        execution_result = tool.invoke(call_args)
-                    except Exception as exc:  # noqa: BLE001
-                        execution_result = {
-                            "status": "error",
-                            "error": str(exc),
-                        }
-            else:
-                execution_result = {
-                    "status": "rejected",
-                    "reason": result_payload.get("reason", "Rejected by user"),
-                }
-
-            rewritten_tool_parts.append(
-                {
-                    "type": "tool-result",
-                    "toolCallId": tool_call_id,
-                    "result": execution_result,
-                }
-            )
-        else:
-            rewritten_tool_parts.append(part)
-
-    updated_messages = [*messages]
-    updated_messages[-1] = {
-        **updated_messages[-1],
-        "content": rewritten_tool_parts,
-    }
-    return updated_messages
-
-
 def _to_langchain_messages(messages: list[dict[str, Any]]) -> list[BaseMessage]:
     """Convert assistant-ui thread messages into LangChain message objects."""
     converted: list[BaseMessage] = []
@@ -258,128 +177,194 @@ async def run_stream(thread_id: str, payload: RunRequest) -> StreamingResponse:
     run_id = str(uuid.uuid4())
     thread_store.ensure_document(thread_id)
 
-    prepared_messages = _apply_human_tool_decisions(payload.messages)
-    langchain_messages = _to_langchain_messages(prepared_messages)
+    langchain_messages = _to_langchain_messages(payload.messages)
     model_with_tools = model.bind_tools(AVAILABLE_TOOLS)
 
     async def event_stream():
-        accumulated_text = ""
-        tool_states: dict[int, dict[str, Any]] = {}
-        assistant_message_id = f"assistant-{uuid.uuid4()}"
         try:
-            async for chunk in model_with_tools.astream(langchain_messages):
-                delta = _extract_chunk_text(getattr(chunk, "content", ""))
-                if delta:
-                    accumulated_text += delta
-                    yield _event_line({"type": "text_delta", "delta": delta})
+            current_messages = [*langchain_messages]
+            assistant_content: list[dict[str, Any]] = []
+            tool_part_indexes: dict[str, int] = {}
+            round_index = 0
 
-                tool_call_chunks = getattr(chunk, "tool_call_chunks", None) or []
-                for raw_chunk in tool_call_chunks:
-                    raw_index = _chunk_field(raw_chunk, "index", 0)
-                    try:
-                        tool_index = int(raw_index)
-                    except (TypeError, ValueError):
-                        tool_index = 0
+            while True:
+                accumulated_text = ""
+                tool_states: dict[int, dict[str, Any]] = {}
 
-                    tool_state = tool_states.get(tool_index)
-                    if tool_state is None:
-                        tool_state = {
-                            "toolCallId": f"{run_id}:tool:{tool_index}",
-                            "toolName": "",
-                            "args": {},
-                            "argsText": "",
-                        }
-                        tool_states[tool_index] = tool_state
+                async for chunk in model_with_tools.astream(current_messages):
+                    delta = _extract_chunk_text(getattr(chunk, "content", ""))
+                    if delta:
+                        accumulated_text += delta
+                        if (
+                            assistant_content
+                            and assistant_content[-1].get("type") == "text"
+                        ):
+                            assistant_content[-1]["text"] = (
+                                str(assistant_content[-1].get("text", "")) + delta
+                            )
+                        else:
+                            assistant_content.append({"type": "text", "text": delta})
+                        yield _event_line({"type": "text_delta", "delta": delta})
 
-                    name_piece = _chunk_field(raw_chunk, "name", "")
-                    if isinstance(name_piece, str) and name_piece:
-                        tool_state["toolName"] = name_piece
+                    tool_call_chunks = getattr(chunk, "tool_call_chunks", None) or []
+                    for raw_chunk in tool_call_chunks:
+                        raw_index = _chunk_field(raw_chunk, "index", 0)
+                        try:
+                            tool_index = int(raw_index)
+                        except (TypeError, ValueError):
+                            tool_index = 0
 
-                    args_piece = _chunk_field(raw_chunk, "args", "")
-                    if args_piece:
-                        tool_state["argsText"] += str(args_piece)
+                        tool_state = tool_states.get(tool_index)
+                        if tool_state is None:
+                            tool_state = {
+                                "toolCallId": f"{run_id}:r{round_index}:t{tool_index}",
+                                "toolName": "",
+                                "args": {},
+                                "argsText": "",
+                            }
+                            tool_states[tool_index] = tool_state
 
-                    try:
-                        parsed_args = (
-                            json.loads(tool_state["argsText"])
-                            if tool_state["argsText"].strip()
-                            else {}
-                        )
-                        if isinstance(parsed_args, dict):
-                            tool_state["args"] = parsed_args
-                    except json.JSONDecodeError:
-                        pass
+                        name_piece = _chunk_field(raw_chunk, "name", "")
+                        if isinstance(name_piece, str) and name_piece:
+                            tool_state["toolName"] = name_piece
 
-                    yield _event_line(
-                        {
-                            "type": "tool_call",
-                            "toolCallId": tool_state["toolCallId"],
-                            "toolName": tool_state["toolName"] or f"tool_{tool_index}",
-                            "args": tool_state["args"],
-                            "argsText": tool_state["argsText"],
-                        }
-                    )
+                        args_piece = _chunk_field(raw_chunk, "args", "")
+                        if args_piece:
+                            tool_state["argsText"] += str(args_piece)
 
-            if tool_states:
-                tool_parts: list[dict[str, Any]] = []
-                for tool_index in sorted(tool_states):
-                    tool_state = tool_states[tool_index]
-                    tool_parts.append(
-                        {
+                        try:
+                            parsed_args = (
+                                json.loads(tool_state["argsText"])
+                                if tool_state["argsText"].strip()
+                                else {}
+                            )
+                            if isinstance(parsed_args, dict):
+                                tool_state["args"] = parsed_args
+                        except json.JSONDecodeError:
+                            pass
+
+                        next_tool_part = {
                             "type": "tool-call",
                             "toolCallId": tool_state["toolCallId"],
                             "toolName": tool_state["toolName"] or f"tool_{tool_index}",
                             "args": tool_state["args"],
                             "argsText": tool_state["argsText"],
                         }
-                    )
+                        existing_index = tool_part_indexes.get(tool_state["toolCallId"])
+                        if existing_index is None:
+                            tool_part_indexes[tool_state["toolCallId"]] = len(
+                                assistant_content
+                            )
+                            assistant_content.append(next_tool_part)
+                        else:
+                            assistant_content[existing_index] = {
+                                **assistant_content[existing_index],
+                                **next_tool_part,
+                            }
+
+                        yield _event_line(
+                            {
+                                "type": "tool_call",
+                                "toolCallId": tool_state["toolCallId"],
+                                "toolName": tool_state["toolName"]
+                                or f"tool_{tool_index}",
+                                "args": tool_state["args"],
+                                "argsText": tool_state["argsText"],
+                            }
+                        )
+
+                if not tool_states:
+                    break
+
+                ai_tool_calls: list[dict[str, Any]] = []
+                tool_messages: list[ToolMessage] = []
+                for tool_index in sorted(tool_states):
+                    tool_state = tool_states[tool_index]
+                    tool_name = tool_state["toolName"] or f"tool_{tool_index}"
+                    tool_call_id = tool_state["toolCallId"]
+                    args = tool_state["args"]
+
+                    tool = _find_tool(tool_name)
+                    is_error = False
+                    if tool is None:
+                        result: Any = {
+                            "status": "error",
+                            "error": f"Tool '{tool_name}' not found",
+                        }
+                        is_error = True
+                    else:
+                        try:
+                            result = tool.invoke(args)
+                        except Exception as exc:  # noqa: BLE001
+                            result = {"status": "error", "error": str(exc)}
+                            is_error = True
+
+                    tool_part = {
+                        "type": "tool-call",
+                        "toolCallId": tool_call_id,
+                        "toolName": tool_name,
+                        "args": args,
+                        "argsText": tool_state["argsText"],
+                        "result": result,
+                        "isError": is_error,
+                    }
+                    existing_index = tool_part_indexes.get(tool_call_id)
+                    if existing_index is None:
+                        tool_part_indexes[tool_call_id] = len(assistant_content)
+                        assistant_content.append(tool_part)
+                    else:
+                        assistant_content[existing_index] = {
+                            **assistant_content[existing_index],
+                            **tool_part,
+                        }
                     thread_store.upsert_tool_call(
                         thread_id,
                         {
-                            "id": tool_state["toolCallId"],
+                            "id": tool_call_id,
                             "run_id": run_id,
-                            "tool_name": tool_state["toolName"] or f"tool_{tool_index}",
-                            "args": tool_state["args"],
+                            "tool_name": tool_name,
+                            "args": args,
                             "edited_args": None,
-                            "decision": "pending",
-                            "status": "pending",
+                            "decision": "auto",
+                            "status": "failed" if is_error else "completed",
                             "created_at": _now_iso(),
-                            "resolved_at": None,
+                            "resolved_at": _now_iso(),
                         },
                     )
+                    yield _event_line(
+                        {
+                            "type": "tool_result",
+                            "toolCallId": tool_call_id,
+                            "result": result,
+                            "isError": is_error,
+                        }
+                    )
 
-                assistant_message = {
-                    "id": assistant_message_id,
-                    "role": "assistant",
-                    "content": tool_parts,
-                    "status": {"type": "requires-action", "reason": "tool-calls"},
-                    "metadata": {"custom": {}},
-                    "createdAt": _now_iso(),
-                }
-                persisted_messages = [*prepared_messages, assistant_message]
-                thread_store.replace_messages(thread_id, persisted_messages)
-                thread_store.append_run(
-                    thread_id,
-                    {
-                        "id": run_id,
-                        "status": "requires-action",
-                        "created_at": _now_iso(),
-                        "completed_at": _now_iso(),
-                        "error": None,
-                    },
+                    ai_tool_calls.append(
+                        {"id": tool_call_id, "name": tool_name, "args": args}
+                    )
+                    tool_messages.append(
+                        ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)
+                    )
+
+                current_messages.append(
+                    AIMessage(content=accumulated_text, tool_calls=ai_tool_calls)
                 )
-                yield _event_line({"type": "done", "status": "requires-action"})
-                return
+                current_messages.extend(tool_messages)
+                round_index += 1
+
+            if not assistant_content:
+                assistant_content = [{"type": "text", "text": ""}]
 
             assistant_message = {
-                "id": assistant_message_id,
+                "id": f"assistant-{uuid.uuid4()}",
                 "role": "assistant",
-                "content": [{"type": "text", "text": accumulated_text}],
+                "content": assistant_content,
                 "status": {"type": "complete", "reason": "stop"},
                 "metadata": {"custom": {}},
                 "createdAt": _now_iso(),
             }
-            persisted_messages = [*prepared_messages, assistant_message]
+            persisted_messages = [*payload.messages, assistant_message]
             thread_store.replace_messages(thread_id, persisted_messages)
             thread_store.append_run(
                 thread_id,

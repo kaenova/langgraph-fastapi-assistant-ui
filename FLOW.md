@@ -14,7 +14,6 @@
 - Provider uses:
   - `useLocalRuntime` for model execution.
   - `useLocalRuntime(..., { adapters: { history } })` to load/append message history from backend.
-  - `useLocalRuntime(..., { unstable_humanToolNames: [...] })` for HITL approval gating per LocalRuntime docs.
   - `unstable_useRemoteThreadListRuntime` for thread lifecycle API integration.
 - Provider ensures current thread exists, switches runtime to that thread, then renders `Thread`.
 - Initial prompt (`q`) is sent via `useThreadRuntime().append(...)` only when:
@@ -27,7 +26,7 @@
   - `POST /api/be/api/v1/threads/{threadId}/runs/stream`
   - payload: `{ messages, runConfig }`.
 - Backend (`backend/routes/chat.py`) converts assistant-ui messages to LangChain messages.
-- Backend invokes `model.bind_tools(AVAILABLE_TOOLS).invoke(...)`.
+- Backend invokes `model.bind_tools(AVAILABLE_TOOLS).astream(...)` and auto-executes emitted tool calls server-side.
 - Backend streams SSE EventStream events (`text/event-stream`) back to frontend:
   - `text_delta`
   - `tool_call`
@@ -36,14 +35,10 @@
   - `error`
 - Frontend parses EventStream incrementally (with NDJSON fallback for compatibility), reconstructs assistant parts, and yields updates to LocalRuntime.
 
-### 4) Tool calling + HITL (with editable args)
-- If model emits tool calls, backend marks response as `requires-action` and persists pending tool calls.
-- UI fallback (`frontend/components/assistant-ui/tool-fallback.tsx`) shows editable JSON args.
-- User can **Approve** or **Reject**; action is sent back through tool result payload:
-  - `{ decision, editedArgs, reason? }`.
-- Next backend run applies decisions:
-  - Approve: executes tool using edited args (or original args).
-  - Reject: returns rejected result payload.
+### 4) Tool calling (automatic)
+- If model emits tool calls, backend executes them immediately and continues the same run loop.
+- Frontend receives streamed `tool_call` and `tool_result` events for visibility.
+- Run always completes with `done: complete` (no approval step).
 
 ### 5) Persistence model (local JSON per thread)
 - Implemented in `backend/lib/thread_store.py`.
@@ -53,7 +48,7 @@
   - `thread` metadata (`id`, `title`, `status`, timestamps)
   - `messages` (assistant-ui message snapshots)
   - `runs` (run status history)
-  - `tool_calls` (pending/resolved HITL + edited args audit)
+  - `tool_calls` (executed tool-call audit with args and results status)
   - `history` (LocalRuntime exported repository: `headId`, `messages[]` for branch-safe restoration)
 - Thread listing is derived by scanning thread JSON files (no separate persisted threadlist store).
 
