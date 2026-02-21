@@ -46,7 +46,6 @@ type HistoryRepository = {
 type LocalHistoryLoadResult = Awaited<ReturnType<ThreadHistoryAdapter["load"]>>;
 
 const THREAD_API_BASE = "/api/be/api/v1/threads";
-const HUMAN_TOOL_NAMES = ["weather", "generate_image", "get_current_time"];
 
 function toDateOrNow(value: unknown): Date {
   if (value instanceof Date) return value;
@@ -104,9 +103,8 @@ function normalizeHistoryRepository(
 
   const fallbackHeadId =
     accepted.length > 0
-      ? (((accepted[accepted.length - 1].message as Record<string, unknown>).id as
-          | string
-          | undefined) ?? null)
+      ? (((accepted[accepted.length - 1].message as Record<string, unknown>)
+          .id as string | undefined) ?? null)
       : null;
   const resolvedHeadId =
     repository.headId && acceptedIds.has(repository.headId)
@@ -224,20 +222,6 @@ async function requestJson<T>(path: string, options?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function buildAssistantParts(
-  text: string,
-  toolCalls: Map<string, ThreadAssistantMessagePart>,
-): ThreadAssistantMessagePart[] {
-  const parts: ThreadAssistantMessagePart[] = [];
-  if (text) {
-    parts.push({ type: "text", text });
-  }
-  for (const part of toolCalls.values()) {
-    parts.push(part);
-  }
-  return parts;
-}
-
 const InitialPromptSender = ({
   threadId,
   initialPrompt,
@@ -251,7 +235,12 @@ const InitialPromptSender = ({
 
   useEffect(() => {
     const prompt = initialPrompt?.trim();
-    if (!threadRuntime || !threadState || !prompt || sentPrompt.current === prompt) {
+    if (
+      !threadRuntime ||
+      !threadState ||
+      !prompt ||
+      sentPrompt.current === prompt
+    ) {
       return;
     }
     if (threadState.isLoading || threadState.messages.length > 0) {
@@ -310,44 +299,89 @@ export const LocalRuntimeProvider = ({
           );
         }
 
-        const toolCalls = new Map<string, ThreadAssistantMessagePart>();
-        let textContent = "";
+        const orderedParts: ThreadAssistantMessagePart[] = [];
+        const toolPartIndexes = new Map<string, number>();
+
+        const snapshotParts = () =>
+          orderedParts.map((part) =>
+            part.type === "tool-call" ? { ...part } : { ...part },
+          );
+
+        const appendTextDelta = (delta: string) => {
+          if (!delta) return;
+          const lastIndex = orderedParts.length - 1;
+          const lastPart = lastIndex >= 0 ? orderedParts[lastIndex] : undefined;
+          if (lastPart && lastPart.type === "text") {
+            orderedParts[lastIndex] = {
+              ...lastPart,
+              text: `${lastPart.text}${delta}`,
+            };
+            return;
+          }
+          orderedParts.push({ type: "text", text: delta });
+        };
 
         for await (const event of parseBackendStream(response)) {
           if (event.type === "text_delta") {
-            textContent += event.delta;
-            yield { content: buildAssistantParts(textContent, toolCalls) };
+            appendTextDelta(event.delta);
+            yield { content: snapshotParts() };
             continue;
           }
 
           if (event.type === "tool_call") {
-            toolCalls.set(event.toolCallId, {
+            const nextPart: ThreadAssistantMessagePart = {
               type: "tool-call",
               toolCallId: event.toolCallId,
               toolName: event.toolName,
               args: event.args,
               argsText: event.argsText ?? JSON.stringify(event.args),
-            });
-            yield { content: buildAssistantParts(textContent, toolCalls) };
+            };
+            const existingIndex = toolPartIndexes.get(event.toolCallId);
+            if (existingIndex === undefined) {
+              toolPartIndexes.set(event.toolCallId, orderedParts.length);
+              orderedParts.push(nextPart);
+            } else {
+              const previousPart = orderedParts[existingIndex];
+              orderedParts[existingIndex] =
+                previousPart?.type === "tool-call"
+                  ? { ...previousPart, ...nextPart }
+                  : nextPart;
+            }
+            yield { content: snapshotParts() };
             continue;
           }
 
           if (event.type === "tool_result") {
-            const currentPart = toolCalls.get(event.toolCallId);
-            if (currentPart && currentPart.type === "tool-call") {
-              toolCalls.set(event.toolCallId, {
-                ...currentPart,
+            const existingIndex = toolPartIndexes.get(event.toolCallId);
+            if (existingIndex !== undefined) {
+              const currentPart = orderedParts[existingIndex];
+              if (currentPart?.type === "tool-call") {
+                orderedParts[existingIndex] = {
+                  ...currentPart,
+                  result: event.result,
+                  isError: event.isError,
+                };
+                yield { content: snapshotParts() };
+              }
+            } else {
+              toolPartIndexes.set(event.toolCallId, orderedParts.length);
+              orderedParts.push({
+                type: "tool-call",
+                toolCallId: event.toolCallId,
+                toolName: "tool",
+                args: {},
+                argsText: "{}",
                 result: event.result,
                 isError: event.isError,
               });
-              yield { content: buildAssistantParts(textContent, toolCalls) };
+              yield { content: snapshotParts() };
             }
             continue;
           }
 
           if (event.type === "done") {
             yield {
-              content: buildAssistantParts(textContent, toolCalls),
+              content: snapshotParts(),
               status:
                 event.status === "requires-action"
                   ? { type: "requires-action", reason: "tool-calls" }
@@ -413,6 +447,14 @@ export const LocalRuntimeProvider = ({
         );
       },
       async initialize(nextThreadId) {
+        // Check if nextThreadId contains __LOCAL__
+        if (nextThreadId.startsWith("__LOCALID_")) {
+          return {
+            remoteId: nextThreadId,
+            externalId: undefined,
+          };
+        }
+
         return requestJson<{
           remoteId: string;
           externalId: string | undefined;
@@ -449,10 +491,13 @@ export const LocalRuntimeProvider = ({
         }
       },
       async append(item) {
-        await requestJson(`${THREAD_API_BASE}/${encodedThreadId}/history/append`, {
-          method: "POST",
-          body: JSON.stringify(item),
-        });
+        await requestJson(
+          `${THREAD_API_BASE}/${encodedThreadId}/history/append`,
+          {
+            method: "POST",
+            body: JSON.stringify(item),
+          },
+        );
       },
     }),
     [encodedThreadId],
@@ -462,7 +507,6 @@ export const LocalRuntimeProvider = ({
     runtimeHook: () =>
       useLocalRuntime(modelAdapter, {
         adapters: { history: historyAdapter },
-        unstable_humanToolNames: HUMAN_TOOL_NAMES,
       }),
     adapter: remoteThreadListAdapter,
   });
@@ -478,10 +522,10 @@ export const LocalRuntimeProvider = ({
           { method: "GET" },
         );
       } catch {
-        await requestJson(`${THREAD_API_BASE}/initialize`, {
-          method: "POST",
-          body: JSON.stringify({ threadId }),
-        });
+        // await requestJson(`${THREAD_API_BASE}/initialize`, {
+        //   method: "POST",
+        //   body: JSON.stringify({ threadId }),
+        // });
       }
 
       await runtime.threads.switchToThread(threadId);

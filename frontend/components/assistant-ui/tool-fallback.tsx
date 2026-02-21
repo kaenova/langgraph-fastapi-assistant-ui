@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -9,7 +9,6 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import {
-  useAui,
   useScrollLock,
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
@@ -19,7 +18,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
@@ -271,43 +269,9 @@ function ToolFallbackError({
 }
 
 const ToolFallbackImpl: ToolCallMessagePartComponent = (props) => {
-  const { toolName, toolCallId, args, argsText, result, status } = props;
-  const aui = useAui();
+  const { toolName, argsText, result, status } = props;
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
-  const needsApproval = status?.type === "requires-action" && result === undefined;
-  const [editedArgsText, setEditedArgsText] = useState(argsText ?? "{}");
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setEditedArgsText(argsText ?? JSON.stringify(args ?? {}, null, 2));
-  }, [argsText, args]);
-
-  const submitDecision = useCallback(
-    (decision: "approve" | "reject") => {
-      let editedArgs: Record<string, unknown> | undefined;
-
-      if (editedArgsText.trim().length > 0) {
-        try {
-          editedArgs = JSON.parse(editedArgsText) as Record<string, unknown>;
-        } catch {
-          setActionError("Tool arguments must be valid JSON.");
-          return;
-        }
-      }
-
-      setActionError(null);
-      aui
-        .message()
-        .part({ toolCallId })
-        .addToolResult({
-          decision,
-          editedArgs,
-          reason: decision === "reject" ? "Rejected by user" : undefined,
-        });
-    },
-    [aui, editedArgsText, toolCallId],
-  );
 
   return (
     <ToolFallbackRoot
@@ -320,32 +284,6 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = (props) => {
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
-        {needsApproval ? (
-          <div className="space-y-2 px-4">
-            <p className="font-medium text-xs">Edit tool args (JSON):</p>
-            <textarea
-              value={editedArgsText}
-              onChange={(event) => setEditedArgsText(event.target.value)}
-              className="min-h-28 w-full resize-y rounded-md border bg-background px-2 py-1.5 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Editable tool arguments"
-            />
-            {actionError ? (
-              <p className="text-destructive text-xs">{actionError}</p>
-            ) : null}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => submitDecision("approve")}>
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => submitDecision("reject")}
-              >
-                Reject
-              </Button>
-            </div>
-          </div>
-        ) : null}
         {!isCancelled && <ToolFallbackResult result={result} />}
       </ToolFallbackContent>
     </ToolFallbackRoot>
