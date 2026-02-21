@@ -4,6 +4,8 @@
 
 ### 1) Entry and thread bootstrap
 - Route files in `frontend/app` are thin wrappers; reusable custom frontend template logic lives in `frontend/lib/assistant-template/`.
+- Root app layout mounts `AssistantTemplateShellLayout` (`frontend/lib/assistant-template/app-shell-layout.tsx`) so `/` and `/chat/[threadId]` share a left thread navigation rail.
+- Shell thread list loads `GET /api/be/api/v1/threads` and navigates with Next links to `/chat/{threadId}`.
 - User lands on `/` (`frontend/app/page.tsx`) and sees `WelcomePage` (`frontend/lib/assistant-template/welcome-page.tsx`).
 - Welcome uses Assistant UI `ComposerPrimitive` (same composer UX as chat, including attachments).
 - On send from welcome composer:

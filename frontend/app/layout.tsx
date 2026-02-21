@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { AssistantTemplateShellLayout } from "@/lib/assistant-template/app-shell-layout";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,7 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AssistantTemplateShellLayout>{children}</AssistantTemplateShellLayout>
       </body>
     </html>
   );

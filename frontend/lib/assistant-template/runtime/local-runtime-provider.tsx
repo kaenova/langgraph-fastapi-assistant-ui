@@ -50,7 +50,9 @@ const InitialWelcomeMessageSender = ({ threadId }: { threadId: string }) => {
       threadRuntime.append({
         role: "user",
         content: payload.content,
-        attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
+        attachments: Array.isArray(payload.attachments)
+          ? payload.attachments
+          : [],
       });
       sessionStorage.removeItem(storageKey);
       hasSent.current = true;
@@ -69,16 +71,15 @@ const InitialWelcomeMessageSender = ({ threadId }: { threadId: string }) => {
 };
 
 // Wires assistant runtime, thread list, and history adapters for a chat thread.
-export const LocalRuntimeProvider = ({
-  threadId,
-}: {
-  threadId: string;
-}) => {
+export const LocalRuntimeProvider = ({ threadId }: { threadId: string }) => {
   const [isReady, setIsReady] = useState(false);
   const encodedThreadId = encodeURIComponent(threadId);
 
   const modelAdapter = useMemo(() => createModelAdapter(threadId), [threadId]);
-  const remoteThreadListAdapter = useMemo(() => createRemoteThreadListAdapter(), []);
+  const remoteThreadListAdapter = useMemo(
+    () => createRemoteThreadListAdapter(),
+    [],
+  );
   const historyAdapter = useMemo(
     () => createHistoryAdapter(encodedThreadId),
     [encodedThreadId],
@@ -102,9 +103,12 @@ export const LocalRuntimeProvider = ({
     const setup = async () => {
       setIsReady(false);
       try {
-        await requestJson(`${THREAD_API_BASE}/${encodeURIComponent(threadId)}`, {
-          method: "GET",
-        });
+        await requestJson(
+          `${THREAD_API_BASE}/${encodeURIComponent(threadId)}`,
+          {
+            method: "GET",
+          },
+        );
       } catch {
         // noop
       }
@@ -124,7 +128,7 @@ export const LocalRuntimeProvider = ({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="h-dvh">
+      <div className="h-full">
         {isReady ? (
           <>
             <InitialWelcomeMessageSender threadId={threadId} />

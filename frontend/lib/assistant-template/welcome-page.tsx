@@ -94,7 +94,7 @@ export const WelcomePage = () => {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <main className="flex h-dvh items-center justify-center bg-background px-4">
+      <main className="flex h-full items-center justify-center bg-background px-4">
         <div className="w-full max-w-2xl space-y-4">
           <h1 className="text-center font-semibold text-3xl">Welcome</h1>
           <p className="text-center text-muted-foreground text-sm">
