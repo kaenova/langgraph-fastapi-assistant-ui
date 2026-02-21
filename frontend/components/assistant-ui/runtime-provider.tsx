@@ -8,8 +8,10 @@ import {
   useThread,
   useThreadRuntime,
   type ChatModelAdapter,
+  type CompleteAttachment,
   type ThreadHistoryAdapter,
   type ThreadAssistantMessagePart,
+  type ThreadUserMessagePart,
   type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -46,6 +48,12 @@ type HistoryRepository = {
 type LocalHistoryLoadResult = Awaited<ReturnType<ThreadHistoryAdapter["load"]>>;
 
 const THREAD_API_BASE = "/api/be/api/v1/threads";
+const WELCOME_INITIAL_MESSAGE_KEY_PREFIX = "aui:welcome-initial-message:";
+
+type WelcomeInitialMessagePayload = {
+  content: ThreadUserMessagePart[];
+  attachments: CompleteAttachment[];
+};
 
 function toDateOrNow(value: unknown): Date {
   if (value instanceof Date) return value;
@@ -222,44 +230,45 @@ async function requestJson<T>(path: string, options?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-const InitialPromptSender = ({
-  threadId,
-  initialPrompt,
-}: {
-  threadId: string;
-  initialPrompt?: string;
-}) => {
+const InitialWelcomeMessageSender = ({ threadId }: { threadId: string }) => {
   const threadRuntime = useThreadRuntime({ optional: true });
   const threadState = useThread({ optional: true });
-  const sentPrompt = useRef<string | null>(null);
+  const hasSent = useRef(false);
 
   useEffect(() => {
-    const prompt = initialPrompt?.trim();
-    if (
-      !threadRuntime ||
-      !threadState ||
-      !prompt ||
-      sentPrompt.current === prompt
-    ) {
+    if (!threadRuntime || !threadState || hasSent.current) {
       return;
     }
     if (threadState.isLoading || threadState.messages.length > 0) {
       return;
     }
 
-    const dedupeKey = `aui:initial-prompt:${threadId}:${prompt}`;
-    if (sessionStorage.getItem(dedupeKey) === "1") {
+    const storageKey = `${WELCOME_INITIAL_MESSAGE_KEY_PREFIX}${threadId}`;
+    const payloadRaw = sessionStorage.getItem(storageKey);
+    if (!payloadRaw) {
       return;
     }
-    sessionStorage.setItem(dedupeKey, "1");
 
-    threadRuntime.append(prompt);
-    sentPrompt.current = prompt;
+    try {
+      const payload = JSON.parse(payloadRaw) as WelcomeInitialMessagePayload;
+      if (!Array.isArray(payload.content) || payload.content.length === 0) {
+        sessionStorage.removeItem(storageKey);
+        return;
+      }
+      threadRuntime.append({
+        role: "user",
+        content: payload.content,
+        attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
+      });
+      sessionStorage.removeItem(storageKey);
+      hasSent.current = true;
+    } catch {
+      sessionStorage.removeItem(storageKey);
+    }
   }, [
     threadRuntime,
     threadState,
     threadId,
-    initialPrompt,
     threadState?.isLoading,
     threadState?.messages.length,
   ]);
@@ -269,10 +278,8 @@ const InitialPromptSender = ({
 
 export const LocalRuntimeProvider = ({
   threadId,
-  initialPrompt,
 }: {
   threadId: string;
-  initialPrompt?: string;
 }) => {
   const [isReady, setIsReady] = useState(false);
   const encodedThreadId = encodeURIComponent(threadId);
@@ -546,10 +553,7 @@ export const LocalRuntimeProvider = ({
       <div className="h-dvh">
         {isReady ? (
           <>
-            <InitialPromptSender
-              threadId={threadId}
-              initialPrompt={initialPrompt}
-            />
+            <InitialWelcomeMessageSender threadId={threadId} />
             <Thread />
           </>
         ) : (

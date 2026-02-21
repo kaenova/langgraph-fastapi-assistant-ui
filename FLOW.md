@@ -4,10 +4,12 @@
 
 ### 1) Entry and thread bootstrap
 - User lands on `/` (`frontend/app/page.tsx`) and sees `WelcomePage` (`frontend/app/welcome-page.tsx`).
-- On submit:
+- Welcome uses Assistant UI `ComposerPrimitive` (same composer UX as chat, including attachments).
+- On send from welcome composer:
   - Frontend creates `threadId` via `crypto.randomUUID()`.
   - Calls `POST /api/be/api/v1/threads/initialize` with `{ threadId }`.
-  - Redirects to `/chat/{threadId}?q={initialPrompt}`.
+  - Stores the initial user message payload in `sessionStorage` keyed by `threadId`.
+  - Redirects to `/chat/{threadId}` (no query params).
 
 ### 2) Chat page runtime wiring
 - `/chat/[threadId]` renders `LocalRuntimeProvider` (`frontend/components/assistant-ui/runtime-provider.tsx`).
@@ -16,10 +18,10 @@
   - `useLocalRuntime(..., { adapters: { history } })` to load/append message history from backend.
   - `unstable_useRemoteThreadListRuntime` for thread lifecycle API integration.
 - Provider ensures current thread exists, switches runtime to that thread, then renders `Thread`.
-- Initial prompt (`q`) is sent via `useThreadRuntime().append(...)` only when:
+- Initial welcome message (if any) is appended via `useThreadRuntime().append(...)` only when:
   - thread history has finished loading,
   - current thread has zero messages,
-  - and a session-scoped dedupe key has not already sent that prompt.
+  - and a `sessionStorage` payload exists for that thread.
 
 ### 3) Message run + streaming
 - LocalRuntime adapter `run()` sends:
