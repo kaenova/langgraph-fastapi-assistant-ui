@@ -1,0 +1,251 @@
+{
+  "thread": {
+    "id": "39cf2822-e0a8-4ba5-b1fa-c51473e43624",
+    "title": "New Chat",
+    "status": "regular",
+    "created_at": "2026-02-20T12:32:01.106989+00:00",
+    "updated_at": "2026-02-20T12:47:37.150059+00:00",
+    "last_message_at": "2026-02-20T12:47:37.149277+00:00"
+  },
+  "messages": [
+    {
+      "id": "x1o9vKG",
+      "createdAt": "2026-02-20T12:47:35.819Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What's the weather in San Francisco?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "assistant-9a61d6ed-e923-4300-853d-f97b93c3104e",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool-call",
+          "toolCallId": "12c529d3-8039-4552-aed5-f6d5e8018488: functions.weather:0",
+          "toolName": "weather",
+          "args": {
+            "city": "San Francisco"
+          },
+          "argsText": "{\"city\": \"San Francisco\"}"
+        }
+      ],
+      "status": {
+        "type": "requires-action",
+        "reason": "tool-calls"
+      },
+      "metadata": {
+        "custom": {}
+      },
+      "createdAt": "2026-02-20T12:47:37.148939+00:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": "7e1cd4ff-7f72-40cc-8765-b4a397c039b9",
+      "status": "complete",
+      "created_at": "2026-02-20T12:32:02.747249+00:00",
+      "completed_at": "2026-02-20T12:32:02.747256+00:00",
+      "error": null
+    },
+    {
+      "id": "099d38b4-5970-4fa6-a14d-dcc707771575",
+      "status": "complete",
+      "created_at": "2026-02-20T12:32:48.795957+00:00",
+      "completed_at": "2026-02-20T12:32:48.795965+00:00",
+      "error": null
+    },
+    {
+      "id": "dc021c5b-b0e1-4c0d-b523-74cd76aa08e5",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:33:08.519421+00:00",
+      "completed_at": "2026-02-20T12:33:08.519427+00:00",
+      "error": null
+    },
+    {
+      "id": "15ce74e1-80ef-410a-9603-b3089c61e949",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:33:13.533312+00:00",
+      "completed_at": "2026-02-20T12:33:13.533326+00:00",
+      "error": null
+    },
+    {
+      "id": "702efaeb-10a2-4b72-b66c-3c63093c34a1",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:38:23.879910+00:00",
+      "completed_at": "2026-02-20T12:38:23.879915+00:00",
+      "error": null
+    },
+    {
+      "id": "7f911ad0-de3a-4699-a885-6f0c7d0d8703",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:38:29.434210+00:00",
+      "completed_at": "2026-02-20T12:38:29.434220+00:00",
+      "error": null
+    },
+    {
+      "id": "48865ea8-954b-4c88-862d-82e1532c2a00",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:38:32.397172+00:00",
+      "completed_at": "2026-02-20T12:38:32.397178+00:00",
+      "error": null
+    },
+    {
+      "id": "43614bbd-786d-40d8-93ea-1414f8522ad6",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:38:41.336576+00:00",
+      "completed_at": "2026-02-20T12:38:41.336585+00:00",
+      "error": null
+    },
+    {
+      "id": "428dcc41-861e-4b50-92cc-1743290e0507",
+      "status": "complete",
+      "created_at": "2026-02-20T12:44:43.842018+00:00",
+      "completed_at": "2026-02-20T12:44:43.842027+00:00",
+      "error": null
+    },
+    {
+      "id": "12c529d3-8039-4552-aed5-f6d5e8018488",
+      "status": "requires-action",
+      "created_at": "2026-02-20T12:47:37.149892+00:00",
+      "completed_at": "2026-02-20T12:47:37.149898+00:00",
+      "error": null
+    }
+  ],
+  "tool_calls": [
+    {
+      "id": " functions.weather:0",
+      "run_id": "15ce74e1-80ef-410a-9603-b3089c61e949",
+      "tool_name": "weather",
+      "args": {
+        "city": "San Francisco"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-20T12:33:13.530153+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "702efaeb-10a2-4b72-b66c-3c63093c34a1: functions.weather:0",
+      "run_id": "702efaeb-10a2-4b72-b66c-3c63093c34a1",
+      "tool_name": "weather",
+      "args": {
+        "city": "San Francisco"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-20T12:38:23.878604+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "7f911ad0-de3a-4699-a885-6f0c7d0d8703: functions.weather:0",
+      "run_id": "7f911ad0-de3a-4699-a885-6f0c7d0d8703",
+      "tool_name": "weather",
+      "args": {
+        "city": "San Francisco"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-20T12:38:29.431140+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "48865ea8-954b-4c88-862d-82e1532c2a00: functions.weather:0",
+      "run_id": "48865ea8-954b-4c88-862d-82e1532c2a00",
+      "tool_name": "weather",
+      "args": {
+        "city": "San Francisco"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-20T12:38:32.395506+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "43614bbd-786d-40d8-93ea-1414f8522ad6: functions.weather:0",
+      "run_id": "43614bbd-786d-40d8-93ea-1414f8522ad6",
+      "tool_name": "weather",
+      "args": {
+        "city": "San Francisco"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-20T12:38:41.333188+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "12c529d3-8039-4552-aed5-f6d5e8018488: functions.weather:0",
+      "run_id": "12c529d3-8039-4552-aed5-f6d5e8018488",
+      "tool_name": "weather",
+      "args": {
+        "city": "San Francisco"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-20T12:47:37.147303+00:00",
+      "resolved_at": null
+    }
+  ],
+  "history": {
+    "headId": "assistant-9a61d6ed-e923-4300-853d-f97b93c3104e",
+    "messages": [
+      {
+        "message": {
+          "id": "x1o9vKG",
+          "createdAt": "2026-02-20T12:47:35.819Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What's the weather in San Francisco?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "parentId": null
+      },
+      {
+        "message": {
+          "id": "assistant-9a61d6ed-e923-4300-853d-f97b93c3104e",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "tool-call",
+              "toolCallId": "12c529d3-8039-4552-aed5-f6d5e8018488: functions.weather:0",
+              "toolName": "weather",
+              "args": {
+                "city": "San Francisco"
+              },
+              "argsText": "{\"city\": \"San Francisco\"}"
+            }
+          ],
+          "status": {
+            "type": "requires-action",
+            "reason": "tool-calls"
+          },
+          "metadata": {
+            "custom": {}
+          },
+          "createdAt": "2026-02-20T12:47:37.148939+00:00"
+        },
+        "parentId": "x1o9vKG"
+      }
+    ]
+  }
+}

@@ -1,0 +1,316 @@
+{
+  "thread": {
+    "id": "c1a00c7e-b81a-4d04-97ad-88f1934800c2",
+    "title": "New Chat",
+    "status": "regular",
+    "created_at": "2026-02-21T04:46:15.083106+00:00",
+    "updated_at": "2026-02-21T04:49:14.137302+00:00",
+    "last_message_at": "2026-02-21T04:49:14.135602+00:00"
+  },
+  "messages": [
+    {
+      "id": "3oCgwsU",
+      "createdAt": "2026-02-21T04:46:15.362Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Halo!"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "g0lCDg5",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " Halo! Apa kabar? \ud83d\udc4b\n\nSaya adalah Kimi, asisten AI yang siap membantu Anda. Ada yang bisa saya bantu hari ini? Anda bisa bertanya tentang:\n\n- Cuaca di kota Anda \ud83c\udf24\ufe0f\n- Gambar yang ingin dibuat \ud83c\udfa8\n- Atau topik lainnya!\n\nAda yang bisa saya bantu?"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:46:15.363Z"
+    },
+    {
+      "id": "t22AcQN",
+      "createdAt": "2026-02-21T04:46:26.766Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What can you do?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "UY6LQhj",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " Great question! Here's what I can help you with:\n\n## \ud83c\udf24\ufe0f **Weather Information**\n- Get current weather for any city\n\n## \ud83c\udfa8 **Image Generation**\n- Create images using AI (I can generate images based on your descriptions)\n\n## \u23f0 **Current Time**\n- Tell you the current date and time\n\n## \ud83d\udcac **General Assistance**\n- Answer questions\n- Have conversations\n- Help with various topics\n\n---\n\nWould you like me to demonstrate any of these capabilities? For example, I could:\n- Check the weather in your city\n- Generate an image for you\n- Or just chat about anything you'd like!\n\nWhat sounds interesting to you?"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:46:26.766Z"
+    },
+    {
+      "id": "4GtIbTh",
+      "createdAt": "2026-02-21T04:49:01.869Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What's the weather in Jakarta?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "assistant-c1a15ac9-eed1-42c1-b47e-34a6ab50e374",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool-call",
+          "toolCallId": "42ece953-8594-416e-8768-287a44517401:functions.weather:0",
+          "toolName": "weather",
+          "args": {
+            "city": "Jakarta"
+          },
+          "argsText": "{\"city\": \"Jakarta\"}"
+        }
+      ],
+      "status": {
+        "type": "requires-action",
+        "reason": "tool-calls"
+      },
+      "metadata": {
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:49:14.134927+00:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": "9c65dd13-8ae3-4934-9704-ad929efe4976",
+      "status": "complete",
+      "created_at": "2026-02-21T04:46:17.362902+00:00",
+      "completed_at": "2026-02-21T04:46:17.362911+00:00",
+      "error": null
+    },
+    {
+      "id": "a8d9b1b5-3382-4ad8-8d5f-c9640bdf3d83",
+      "status": "complete",
+      "created_at": "2026-02-21T04:46:29.304946+00:00",
+      "completed_at": "2026-02-21T04:46:29.304955+00:00",
+      "error": null
+    },
+    {
+      "id": "11f9f3aa-3421-49bf-a0ff-6ac0be3ebcaf",
+      "status": "requires-action",
+      "created_at": "2026-02-21T04:49:02.949922+00:00",
+      "completed_at": "2026-02-21T04:49:02.949929+00:00",
+      "error": null
+    },
+    {
+      "id": "f162a495-ea5c-40c5-a526-c35b60d4a098",
+      "status": "requires-action",
+      "created_at": "2026-02-21T04:49:08.177047+00:00",
+      "completed_at": "2026-02-21T04:49:08.177058+00:00",
+      "error": null
+    },
+    {
+      "id": "42ece953-8594-416e-8768-287a44517401",
+      "status": "requires-action",
+      "created_at": "2026-02-21T04:49:14.137021+00:00",
+      "completed_at": "2026-02-21T04:49:14.137033+00:00",
+      "error": null
+    }
+  ],
+  "tool_calls": [
+    {
+      "id": "11f9f3aa-3421-49bf-a0ff-6ac0be3ebcaf:functions.weather:0",
+      "run_id": "11f9f3aa-3421-49bf-a0ff-6ac0be3ebcaf",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T04:49:02.946615+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "f162a495-ea5c-40c5-a526-c35b60d4a098:functions.weather:0",
+      "run_id": "f162a495-ea5c-40c5-a526-c35b60d4a098",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T04:49:08.172540+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "42ece953-8594-416e-8768-287a44517401:functions.weather:0",
+      "run_id": "42ece953-8594-416e-8768-287a44517401",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T04:49:14.132276+00:00",
+      "resolved_at": null
+    }
+  ],
+  "history": {
+    "headId": "4GtIbTh",
+    "messages": [
+      {
+        "parentId": null,
+        "message": {
+          "id": "3oCgwsU",
+          "createdAt": "2026-02-21T04:46:15.362Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo!"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "3oCgwsU",
+        "message": {
+          "id": "g0lCDg5",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! Apa kabar? \ud83d\udc4b\n\nSaya adalah Kimi, asisten AI yang siap membantu Anda. Ada yang bisa saya bantu hari ini? Anda bisa bertanya tentang:\n\n- Cuaca di kota Anda \ud83c\udf24\ufe0f\n- Gambar yang ingin dibuat \ud83c\udfa8\n- Atau topik lainnya!\n\nAda yang bisa saya bantu?"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:46:15.363Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "g0lCDg5",
+        "message": {
+          "id": "t22AcQN",
+          "createdAt": "2026-02-21T04:46:26.766Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What can you do?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "t22AcQN",
+        "message": {
+          "id": "UY6LQhj",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Great question! Here's what I can help you with:\n\n## \ud83c\udf24\ufe0f **Weather Information**\n- Get current weather for any city\n\n## \ud83c\udfa8 **Image Generation**\n- Create images using AI (I can generate images based on your descriptions)\n\n## \u23f0 **Current Time**\n- Tell you the current date and time\n\n## \ud83d\udcac **General Assistance**\n- Answer questions\n- Have conversations\n- Help with various topics\n\n---\n\nWould you like me to demonstrate any of these capabilities? For example, I could:\n- Check the weather in your city\n- Generate an image for you\n- Or just chat about anything you'd like!\n\nWhat sounds interesting to you?"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:46:26.766Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "UY6LQhj",
+        "message": {
+          "id": "4GtIbTh",
+          "createdAt": "2026-02-21T04:49:01.869Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What's the weather in Jakarta?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      }
+    ]
+  }
+}

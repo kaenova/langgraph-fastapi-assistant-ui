@@ -1,0 +1,262 @@
+{
+  "thread": {
+    "id": "e6b2cea4-a87e-4092-ad6f-0c8ac48a4b83",
+    "title": "New Chat",
+    "status": "regular",
+    "created_at": "2026-02-21T04:35:12.029327+00:00",
+    "updated_at": "2026-02-21T04:41:04.190857+00:00",
+    "last_message_at": "2026-02-21T04:41:04.190857+00:00"
+  },
+  "messages": [
+    {
+      "id": "ThXsxYw",
+      "createdAt": "2026-02-21T04:41:00.802Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Halo"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "assistant-1d653a77-ce48-497c-ba27-13afb8b5a8e5",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": " Halo! \ud83d\udc4b Apa kabar? Saya siap membantu Anda dengan berbagai hal, seperti:\n\n- Mengecek cuaca di kota Anda\n- Membuat gambar dengan AI\n- Menanyakan waktu saat ini\n- Atau pertanyaan lainnya\n\nAda yang bisa saya bantu hari ini?"
+        }
+      ],
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "metadata": {
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:41:04.154577+00:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": "ef011f01-0c14-49b0-bd3a-f0f939cbd28f",
+      "status": "complete",
+      "created_at": "2026-02-21T04:35:14.398946+00:00",
+      "completed_at": "2026-02-21T04:35:14.398954+00:00",
+      "error": null
+    },
+    {
+      "id": "ce5c357d-5eef-42fc-8e91-350158db28e5",
+      "status": "complete",
+      "created_at": "2026-02-21T04:36:50.518237+00:00",
+      "completed_at": "2026-02-21T04:36:50.518244+00:00",
+      "error": null
+    },
+    {
+      "id": "5143dd5d-a11e-4656-8e5b-d0843678b10f",
+      "status": "complete",
+      "created_at": "2026-02-21T04:37:24.177789+00:00",
+      "completed_at": "2026-02-21T04:37:24.177801+00:00",
+      "error": null
+    },
+    {
+      "id": "516b551a-0adb-458c-8824-a97df3c5fd24",
+      "status": "complete",
+      "created_at": "2026-02-21T04:41:04.156268+00:00",
+      "completed_at": "2026-02-21T04:41:04.156281+00:00",
+      "error": null
+    }
+  ],
+  "tool_calls": [],
+  "history": {
+    "headId": "R94xXw4",
+    "messages": [
+      {
+        "parentId": null,
+        "message": {
+          "id": "KwCejJA",
+          "createdAt": "2026-02-21T04:35:12.281Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "KwCejJA",
+        "message": {
+          "id": "lSicOQY",
+          "role": "assistant",
+          "status": {
+            "type": "incomplete",
+            "reason": "error",
+            "error": "MessageRepository(addOrUpdateMessage): Parent message not found. This is likely an internal bug in assistant-ui."
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! Saya adalah Kimi,"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:35:12.282Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": null,
+        "message": {
+          "id": "FANkzPd",
+          "createdAt": "2026-02-21T04:36:48.732Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "FANkzPd",
+        "message": {
+          "id": "d45TYbk",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! Saya adalah Kimi, asisten AI yang siap membantu Anda. Ada apa yang bisa saya bantu hari ini? \ud83d\ude0a\n\nApakah Anda ingin saya membantu dengan:\n- Menanyakan cuaca di kota tertentu\n- Membuat gambar\n- Atau hal-hal lainnya?"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:36:48.733Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "d45TYbk",
+        "message": {
+          "id": "0iSWALB",
+          "createdAt": "2026-02-21T04:37:23.141Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "0iSWALB",
+        "message": {
+          "id": "FmweyCT",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! \ud83d\udc4b Saya Kimi, asisten AI Anda. Senang bisa membantu hari ini! Ada yang bisa saya bantu?"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:37:23.141Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": null,
+        "message": {
+          "id": "ThXsxYw",
+          "createdAt": "2026-02-21T04:41:00.802Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "ThXsxYw",
+        "message": {
+          "id": "R94xXw4",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! \ud83d\udc4b Apa kabar? Saya siap membantu Anda dengan berbagai hal, seperti:\n\n- Mengecek cuaca di kota Anda\n- Membuat gambar dengan AI\n- Menanyakan waktu saat ini\n- Atau pertanyaan lainnya\n\nAda yang bisa saya bantu hari ini?"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:41:00.803Z"
+        },
+        "runConfig": {}
+      }
+    ]
+  }
+}

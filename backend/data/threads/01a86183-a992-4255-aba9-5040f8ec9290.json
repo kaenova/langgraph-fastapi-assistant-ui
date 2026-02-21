@@ -1,0 +1,158 @@
+{
+  "thread": {
+    "id": "01a86183-a992-4255-aba9-5040f8ec9290",
+    "title": "New Chat",
+    "status": "regular",
+    "created_at": "2026-02-21T04:41:12.891853+00:00",
+    "updated_at": "2026-02-21T04:44:23.716742+00:00",
+    "last_message_at": "2026-02-21T04:44:23.716742+00:00"
+  },
+  "messages": [
+    {
+      "id": "XnTvXS4",
+      "createdAt": "2026-02-21T04:44:21.882Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Halo"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "assistant-6eeec76e-5bfb-4a79-bf3c-9181ccedcf83",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": " Halo! Bagaimana saya bisa membantu Anda hari ini? \ud83d\ude0a\n\n(Hello! How can I help you today?)"
+        }
+      ],
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "metadata": {
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:44:23.635067+00:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": "1bb810d6-6196-4521-94ca-17133fd6bb59",
+      "status": "complete",
+      "created_at": "2026-02-21T04:41:14.999438+00:00",
+      "completed_at": "2026-02-21T04:41:14.999452+00:00",
+      "error": null
+    },
+    {
+      "id": "5263115b-6889-4383-b879-7f390b778511",
+      "status": "complete",
+      "created_at": "2026-02-21T04:44:23.637584+00:00",
+      "completed_at": "2026-02-21T04:44:23.637602+00:00",
+      "error": null
+    }
+  ],
+  "tool_calls": [],
+  "history": {
+    "headId": "IUbzsJz",
+    "messages": [
+      {
+        "parentId": null,
+        "message": {
+          "id": "xp8Jwde",
+          "createdAt": "2026-02-21T04:41:13.105Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "xp8Jwde",
+        "message": {
+          "id": "j6BfXkZ",
+          "role": "assistant",
+          "status": {
+            "type": "incomplete",
+            "reason": "error",
+            "error": "MessageRepository(addOrUpdateMessage): Parent message not found. This is likely an internal bug in assistant-ui."
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! Apa kabar? Saya s"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:41:13.106Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": null,
+        "message": {
+          "id": "XnTvXS4",
+          "createdAt": "2026-02-21T04:44:21.882Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "XnTvXS4",
+        "message": {
+          "id": "IUbzsJz",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! Bagaimana saya bisa membantu Anda hari ini? \ud83d\ude0a\n\n(Hello! How can I help you today?)"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:44:21.883Z"
+        },
+        "runConfig": {}
+      }
+    ]
+  }
+}

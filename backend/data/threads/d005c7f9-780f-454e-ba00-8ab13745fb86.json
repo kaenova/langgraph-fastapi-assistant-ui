@@ -1,0 +1,547 @@
+{
+  "thread": {
+    "id": "d005c7f9-780f-454e-ba00-8ab13745fb86",
+    "title": "New Chat",
+    "status": "regular",
+    "created_at": "2026-02-21T04:56:29.064870+00:00",
+    "updated_at": "2026-02-21T05:01:22.641457+00:00",
+    "last_message_at": "2026-02-21T05:01:22.639437+00:00"
+  },
+  "messages": [
+    {
+      "id": "RmiV9VV",
+      "createdAt": "2026-02-21T04:56:29.324Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Halo"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "zqyAuhN",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " Halo! Selamat datang! \ud83d\udc4b Ada yang bisa saya bantu hari ini?"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:56:29.325Z"
+    },
+    {
+      "id": "RNEpj50",
+      "createdAt": "2026-02-21T04:56:33.982Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What can you do?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "Djkh7qk",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " Saya bisa membantu Anda dengan beberapa hal berikut:\n\n## \ud83c\udf24\ufe0f **Informasi Cuaca**\n- Menyediakan informasi cuaca terkini untuk kota mana pun\n\n## \ud83c\udfa8 **Generate Gambar**\n- Membuat gambar dengan AI menggunakan DALL-E atau FLUX\n- Pilihan ukuran: 1024x1024, 1792x1024, atau 1024x1792\n- Gaya: vivid atau natural\n\n## \u23f0 **Waktu Saat Ini**\n- Menampilkan tanggal dan waktu terkini\n\n---\n\n**Contoh yang bisa Anda coba:**\n- \"Bagaimana cuaca di Jakarta?\"\n- \"Buatkan gambar pemandangan gunung di pagi hari\"\n- \"Jam berapa sekarang?\"\n\nAda yang bisa saya bantu? \ud83d\ude0a"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:56:33.983Z"
+    },
+    {
+      "id": "r6IN9Fh",
+      "createdAt": "2026-02-21T04:58:05.729Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Make me 5 paragraph long story about Rhea and Kaenova"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "9w0zJli",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " Berikut adalah cerita tentang Rhea dan Kaenova:\n\n---\n\n### **Rhea dan Kaenova: Dua Bintang dalam Satu Orbit**\n\nRhea pertama kali bertemu Kaenova di sebuah kafe tua di sudut kota yang selalu dipenuhi aroma kopi dan buku-buku bekas. Rhea, dengan kacamata hitamnya yang selalu terpasang bahkan di dalam ruangan, sedang asyik membaca novel fiksi ilmiah ketika Kaenova\u2014dengan rambut pirangnya yang berantakan dan jaket kulit yang usang\u2014duduk di seberangnya tanpa diminta. \"Kursi ini dipesan?\" tanya Kaenova dengan senyum miring. Rhea menggeleng, dan tanpa mereka sadari, percakapan mereka berlanjut hingga kafe tutup, membicarakan segala hal dari teori multiverse hingga resep pancake terbaik.\n\nMeskipun sifat mereka bertolak belakang\u2014Rhea yang terstruktur dan selalu merencanakan segalanya, sementara Kaenova hidup dalam spontanitas dan kekacauan indah\u2014mereka menemukan ritme yang nyaman. Rhea mengajari Kaenova pentingnya menabung dan membuat jadwal, sementara Kaenova mengajak Rhea menjelajahi jalan-jalan sempit kota di tengah malam, menemukan mural-mural tersembunyi dan warung mie yang hanya buka pukul dua dini hari. Mereka seperti dua puzzle yang tidak cocok namun dengan paksa dipasangkan, tapi entah bagaimana justru menciptakan gambar yang lebih indah.\n\nKonflik pertama mereka datang ketika Kaenova tiba-tiba memutuskan untuk pergi ke Nepal selama tiga bulan tanpa pemberitahuan sebelumnya. Rhea merasa dikhianati; bagaimana mungkin seseorang yang ia anggap sahabat terbaiknya bisa begitu mudah meninggalkannya? Mereka tidak berbicara selama lima minggu\u2014periode terpanjang sejak pertemuan mereka. Rhea menyibukkan diri dengan pekerjaan, merapikan apartemennya hingga setiap sudut sempurna, namun merasa hampa. Sementara itu, Kaenova mengirimkan postcard dengan tulisan tangan yang berantakan dari Kathmandu, Dharan, dan Pokhara, namun tidak pernah dengan permintaan maaf yang Rhea harapkan.\n\nKetika Kaenova akhirnya kembali, Rhea menemuinya di bandara dengan ekspresi dingin yang telah ia latih selama berminggu-minggu. Tapi Kaenova\u2014kurus, berkulit gelap karena matahari, dan membawa ransel yang compang-camping\u2014hanya tersenyum lelah dan berkata, \"Aku menemukan sesuatu untukmu di sana.\" Dari sakunya, ia mengeluarkan kalung dengan liontin batu giok sederhana. \"Ini dari desa di pegunungan. Orang tua di sana bilang, batu ini untuk seseorang yang menunggu di rumah\u2014meskipun dia tidak tahu apa pun tentang perjalananmu.\" Air mata Rhea akhirnya jatuh, dan untuk pertama kalinya, ia mengerti bahwa cinta Kaenova bukan dalam kata-kata atau janji, melainkan dalam keberanian untuk kembali dan memberikan bagian dari dunia yang ia jelajahi.\n\nSekarang, lima tahun kemudian, Rhea dan Kaenova masih tinggal bersama di apartemen kecil yang sama, meskipun dekorasinya kini Instagramable. Rhea masih membuat jadwal, dan Kaenova masih melanggarnya. Tapi di dinding ruang tamu mereka, terpajang peta dunia dengan pin merah di setiap tempat yang telah mereka kunjungi bersama\u2014karena Rhea akhirnya belajar bahwa rencana terbaik kadang adalah tidak punya rencana, dan Kaenova memahami bahwa petualangan paling berharga adalah yang dibagi dengan seseorang yang menunggumu pulang. Mereka tetap dua bintang dengan orbit berbeda, namun kini saling mengitari dalam tarian yang sama, menciptakan galaksi kecil mereka sendiri.\n\n---\n\nSemoga ceritanya menyenangkan! \ud83c\udf1f"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:58:05.730Z"
+    },
+    {
+      "id": "7INVdHj",
+      "createdAt": "2026-02-21T04:59:52.541Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Bagus bagus"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "DkP8kHU",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " Terima kasih! Senang sekali Anda menyukainya! \ud83d\ude0a\n\nKalau Anda mau, saya bisa:\n- Membuat cerita lanjutan tentang petualangan Rhea dan Kaenova\n- Membuat cerita dengan genre berbeda (misteri, fantasi, thriller, dll)\n- Generate gambar ilustrasi untuk karakter atau adegan ceritanya\n- Atau hal lain yang Anda butuhkan!\n\nAda yang bisa saya bantu lagi? \ud83d\ude80"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T04:59:52.542Z"
+    },
+    {
+      "id": "C6Zpes2",
+      "createdAt": "2026-02-21T05:00:44.771Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Hows the weather in Jakarta?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "assistant-6cf07b24-0340-4bb9-8ec2-b8e1569f8718",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool-call",
+          "toolCallId": "ed38df2e-02c5-4d34-a0bf-446af9e7ec1c:functions.weather:0",
+          "toolName": "weather",
+          "args": {
+            "city": "Jakarta"
+          },
+          "argsText": "{\"city\": \"Jakarta\"}"
+        }
+      ],
+      "status": {
+        "type": "requires-action",
+        "reason": "tool-calls"
+      },
+      "metadata": {
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T05:01:22.638987+00:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": "f98ff82b-fbe7-4ba1-8059-ed7dbbdff663",
+      "status": "complete",
+      "created_at": "2026-02-21T04:56:30.610328+00:00",
+      "completed_at": "2026-02-21T04:56:30.610334+00:00",
+      "error": null
+    },
+    {
+      "id": "29cdf732-9668-4c1e-aa63-58a4e46d6835",
+      "status": "complete",
+      "created_at": "2026-02-21T04:56:36.445829+00:00",
+      "completed_at": "2026-02-21T04:56:36.445839+00:00",
+      "error": null
+    },
+    {
+      "id": "42ddd80a-5751-4e84-8165-4e9a12865a0a",
+      "status": "complete",
+      "created_at": "2026-02-21T04:56:57.382381+00:00",
+      "completed_at": "2026-02-21T04:56:57.382388+00:00",
+      "error": null
+    },
+    {
+      "id": "8885e7a7-9a61-4be6-b163-6c2f17d90002",
+      "status": "complete",
+      "created_at": "2026-02-21T04:58:15.789213+00:00",
+      "completed_at": "2026-02-21T04:58:15.789221+00:00",
+      "error": null
+    },
+    {
+      "id": "ca5b94d0-27af-4489-b199-7c1f2fb5f9a6",
+      "status": "complete",
+      "created_at": "2026-02-21T04:59:54.789797+00:00",
+      "completed_at": "2026-02-21T04:59:54.789804+00:00",
+      "error": null
+    },
+    {
+      "id": "ed38df2e-02c5-4d34-a0bf-446af9e7ec1c",
+      "status": "requires-action",
+      "created_at": "2026-02-21T05:01:22.641192+00:00",
+      "completed_at": "2026-02-21T05:01:22.641202+00:00",
+      "error": null
+    }
+  ],
+  "tool_calls": [
+    {
+      "id": "ed38df2e-02c5-4d34-a0bf-446af9e7ec1c:functions.weather:0",
+      "run_id": "ed38df2e-02c5-4d34-a0bf-446af9e7ec1c",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T05:01:22.635487+00:00",
+      "resolved_at": null
+    }
+  ],
+  "history": {
+    "headId": "js9BdWT",
+    "messages": [
+      {
+        "parentId": null,
+        "message": {
+          "id": "RmiV9VV",
+          "createdAt": "2026-02-21T04:56:29.324Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Halo"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "RmiV9VV",
+        "message": {
+          "id": "zqyAuhN",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Halo! Selamat datang! \ud83d\udc4b Ada yang bisa saya bantu hari ini?"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:56:29.325Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "zqyAuhN",
+        "message": {
+          "id": "RNEpj50",
+          "createdAt": "2026-02-21T04:56:33.982Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What can you do?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "RNEpj50",
+        "message": {
+          "id": "Djkh7qk",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Saya bisa membantu Anda dengan beberapa hal berikut:\n\n## \ud83c\udf24\ufe0f **Informasi Cuaca**\n- Menyediakan informasi cuaca terkini untuk kota mana pun\n\n## \ud83c\udfa8 **Generate Gambar**\n- Membuat gambar dengan AI menggunakan DALL-E atau FLUX\n- Pilihan ukuran: 1024x1024, 1792x1024, atau 1024x1792\n- Gaya: vivid atau natural\n\n## \u23f0 **Waktu Saat Ini**\n- Menampilkan tanggal dan waktu terkini\n\n---\n\n**Contoh yang bisa Anda coba:**\n- \"Bagaimana cuaca di Jakarta?\"\n- \"Buatkan gambar pemandangan gunung di pagi hari\"\n- \"Jam berapa sekarang?\"\n\nAda yang bisa saya bantu? \ud83d\ude0a"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:56:33.983Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "Djkh7qk",
+        "message": {
+          "id": "G63nptg",
+          "createdAt": "2026-02-21T04:56:47.744Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Make me 5 paragraph long story about Rhea"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "G63nptg",
+        "message": {
+          "id": "apIVd24",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Berikut cerita panjang 5 paragraf tentang Rhea:\n\n---\n\n**Rhea dan Cahaya di Ujung Lorong**\n\nRhea selalu menyukai bagian-bagian tersembunyi dari kota tua tempatnya tinggal. Setiap sore, setelah selesai bekerja di perpustakaan kecil di sudut jalan, ia akan menyusuri gang-gang sempit yang dipenuhi bangunan bersejarah. Suara langkahnya yang berpadu dengan gemericik air hujan di atap genting menciptakan melodi yang menenangkan hati. Namun, ada satu lorong khusus yang selalu menarik perhatiannya\u2014sebuah jalan sempit yang ujungnya selalu tampak kabur, seolah diselimuti kabut misterius yang tak pernah hilang meski matahari bersinar terik.\n\nSuatu hari, rasa penasaran Rhea akhirnya mengalahkan rasa takut yang selama ini menahannya. Dengan tas ransel kecil berisi buku catatan dan pensil warna, ia memutuskan untuk menyelusuri lorong tersebut. Langkah demi langkah, dinding batu tua di kedua sisinya tampak semakin mengecil, sementara udara terasa semakin dingin dan lembap. Bunga anggrek liar tumbuh di celah-celah tembok, mengeluarkan aroma manis yang anehnya familiar baginya. Rhea merasa seolah-olah pernah berada di tempat ini, meski ia yakin ini adalah pertama kalinya kakinya menginjak tanah di lorong tersebut.\n\nTiba-tiba, di ujung lorong yang sebelumnya kabur, muncul terang cahaya keemasan yang memecut mata. Rhea terpaku, mengamati bagaimana cahaya tersebut berdenyut-berdenyut seperti memiliki detak jantung sendiri. Ketika ia semakin mendekat, bayangan seseorang mulai terlihat\u2014seorang wanita tua dengan rambut putih panjang yang terurai, mengenakan jubah berwarna biru tua yang dihiasi motif awan dan burung. Wanita itu tersenyum hangat, seolah telah menunggu kedatangan Rhea selama bertahun-tahun. \"Kau akhirnya datang juga, cucuku,\" ucapnya dengan suara lembut yang bergema di dinding batu.\n\nRhea terkejut bukan main. Cucu? Ia selama ini mengira dirinya yatim piatu, tidak memiliki keluarga selain orang tua angkatnya yang baik hati. Wanita tua itu, yang memperkenalkan diri sebagai Nenek Sari, mulai menceritakan kisah keluarga yang terlupakan. Dulunya, leluhur mereka adalah penjaga lorong-lorong rahasia yang menghubungkan berbagai dimensi waktu dan ruang. Kemampuan ini turun-temurun, namun terputus ketika ibu Rhea memutuskan untuk melarikan diri dari takdir tersebut, menikah dengan manusia biasa dan menyembunyikan identitas aslinya hingga akhir hayatnya. Rhea, tanpa sadar, telah mewarisi darah penjaga tersebut.\n\nBulan-bulan berikutnya, Rhea belajar tentang kekuatan yang mengalir di dalam dirinya. Ia belajar membaca jejak waktu yang tertinggal di setiap sudut kota, mendengar bisikan masa lalu yang terperangkap dalam batu-batu tua, dan sesekali membantu arwah yang tersesat menemukan jalan pulang. Namun yang paling berharga, ia menemukan akar keluarganya yang selama ini hilang. Nenek Sari mengajarinya bahwa menjadi penjaga bukan berarti terikat pada takdir, melainkan memilih dengan sadar untuk melindungi keseimbangan antara dunia yang terlihat dan yang tersembunyi. Rhea kini memahami mengapa ia selalu merasa berbeda, dan untuk pertama kalinya dalam hidupnya, ia merasa pulang\u2014bukan hanya ke sebuah tempat, tetapi ke dalam sebuah kisah yang lebih besar dari dirinya sendiri."
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:56:47.746Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "Djkh7qk",
+        "message": {
+          "id": "r6IN9Fh",
+          "createdAt": "2026-02-21T04:58:05.729Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Make me 5 paragraph long story about Rhea and Kaenova"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "r6IN9Fh",
+        "message": {
+          "id": "9w0zJli",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Berikut adalah cerita tentang Rhea dan Kaenova:\n\n---\n\n### **Rhea dan Kaenova: Dua Bintang dalam Satu Orbit**\n\nRhea pertama kali bertemu Kaenova di sebuah kafe tua di sudut kota yang selalu dipenuhi aroma kopi dan buku-buku bekas. Rhea, dengan kacamata hitamnya yang selalu terpasang bahkan di dalam ruangan, sedang asyik membaca novel fiksi ilmiah ketika Kaenova\u2014dengan rambut pirangnya yang berantakan dan jaket kulit yang usang\u2014duduk di seberangnya tanpa diminta. \"Kursi ini dipesan?\" tanya Kaenova dengan senyum miring. Rhea menggeleng, dan tanpa mereka sadari, percakapan mereka berlanjut hingga kafe tutup, membicarakan segala hal dari teori multiverse hingga resep pancake terbaik.\n\nMeskipun sifat mereka bertolak belakang\u2014Rhea yang terstruktur dan selalu merencanakan segalanya, sementara Kaenova hidup dalam spontanitas dan kekacauan indah\u2014mereka menemukan ritme yang nyaman. Rhea mengajari Kaenova pentingnya menabung dan membuat jadwal, sementara Kaenova mengajak Rhea menjelajahi jalan-jalan sempit kota di tengah malam, menemukan mural-mural tersembunyi dan warung mie yang hanya buka pukul dua dini hari. Mereka seperti dua puzzle yang tidak cocok namun dengan paksa dipasangkan, tapi entah bagaimana justru menciptakan gambar yang lebih indah.\n\nKonflik pertama mereka datang ketika Kaenova tiba-tiba memutuskan untuk pergi ke Nepal selama tiga bulan tanpa pemberitahuan sebelumnya. Rhea merasa dikhianati; bagaimana mungkin seseorang yang ia anggap sahabat terbaiknya bisa begitu mudah meninggalkannya? Mereka tidak berbicara selama lima minggu\u2014periode terpanjang sejak pertemuan mereka. Rhea menyibukkan diri dengan pekerjaan, merapikan apartemennya hingga setiap sudut sempurna, namun merasa hampa. Sementara itu, Kaenova mengirimkan postcard dengan tulisan tangan yang berantakan dari Kathmandu, Dharan, dan Pokhara, namun tidak pernah dengan permintaan maaf yang Rhea harapkan.\n\nKetika Kaenova akhirnya kembali, Rhea menemuinya di bandara dengan ekspresi dingin yang telah ia latih selama berminggu-minggu. Tapi Kaenova\u2014kurus, berkulit gelap karena matahari, dan membawa ransel yang compang-camping\u2014hanya tersenyum lelah dan berkata, \"Aku menemukan sesuatu untukmu di sana.\" Dari sakunya, ia mengeluarkan kalung dengan liontin batu giok sederhana. \"Ini dari desa di pegunungan. Orang tua di sana bilang, batu ini untuk seseorang yang menunggu di rumah\u2014meskipun dia tidak tahu apa pun tentang perjalananmu.\" Air mata Rhea akhirnya jatuh, dan untuk pertama kalinya, ia mengerti bahwa cinta Kaenova bukan dalam kata-kata atau janji, melainkan dalam keberanian untuk kembali dan memberikan bagian dari dunia yang ia jelajahi.\n\nSekarang, lima tahun kemudian, Rhea dan Kaenova masih tinggal bersama di apartemen kecil yang sama, meskipun dekorasinya kini Instagramable. Rhea masih membuat jadwal, dan Kaenova masih melanggarnya. Tapi di dinding ruang tamu mereka, terpajang peta dunia dengan pin merah di setiap tempat yang telah mereka kunjungi bersama\u2014karena Rhea akhirnya belajar bahwa rencana terbaik kadang adalah tidak punya rencana, dan Kaenova memahami bahwa petualangan paling berharga adalah yang dibagi dengan seseorang yang menunggumu pulang. Mereka tetap dua bintang dengan orbit berbeda, namun kini saling mengitari dalam tarian yang sama, menciptakan galaksi kecil mereka sendiri.\n\n---\n\nSemoga ceritanya menyenangkan! \ud83c\udf1f"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:58:05.730Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "9w0zJli",
+        "message": {
+          "id": "7INVdHj",
+          "createdAt": "2026-02-21T04:59:52.541Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Bagus bagus"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "7INVdHj",
+        "message": {
+          "id": "DkP8kHU",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " Terima kasih! Senang sekali Anda menyukainya! \ud83d\ude0a\n\nKalau Anda mau, saya bisa:\n- Membuat cerita lanjutan tentang petualangan Rhea dan Kaenova\n- Membuat cerita dengan genre berbeda (misteri, fantasi, thriller, dll)\n- Generate gambar ilustrasi untuk karakter atau adegan ceritanya\n- Atau hal lain yang Anda butuhkan!\n\nAda yang bisa saya bantu lagi? \ud83d\ude80"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T04:59:52.542Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "DkP8kHU",
+        "message": {
+          "id": "C6Zpes2",
+          "createdAt": "2026-02-21T05:00:44.771Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hows the weather in Jakarta?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "C6Zpes2",
+        "message": {
+          "id": "jiFHI1W",
+          "role": "assistant",
+          "status": {
+            "type": "incomplete",
+            "reason": "error",
+            "error": "Failed to fetch"
+          },
+          "content": [],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T05:00:44.772Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "jiFHI1W",
+        "message": {
+          "id": "js9BdWT",
+          "createdAt": "2026-02-21T05:01:09.628Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "How's the weather in Jakarta?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      }
+    ]
+  }
+}

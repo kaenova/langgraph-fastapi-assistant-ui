@@ -1,0 +1,336 @@
+{
+  "thread": {
+    "id": "86acc7c6-e566-4fcf-8a49-66468d375b78",
+    "title": "New Chat",
+    "status": "regular",
+    "created_at": "2026-02-21T05:01:49.925527+00:00",
+    "updated_at": "2026-02-21T05:02:55.907162+00:00",
+    "last_message_at": "2026-02-21T05:02:55.905782+00:00"
+  },
+  "messages": [
+    {
+      "id": "kgPlyjS",
+      "createdAt": "2026-02-21T05:01:50.186Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What can you do?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "jDF7elB",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " I can help you with several things:\n\n1. **Generate images** - I can create images using AI models (DALL-E or FLUX) based on your text descriptions. You can specify the image size and style.\n\n2. **Check the weather** - I can get current weather information for any city you specify.\n\n3. **Tell you the current time** - I can provide you with the current date and time.\n\nLet me know if you'd like me to do any of these things! For example, you could ask me to:\n- Generate an image of something specific\n- Check the weather in a particular city\n- Or simply tell you what time it is right now"
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T05:01:50.187Z"
+    },
+    {
+      "id": "E5jxP2k",
+      "createdAt": "2026-02-21T05:02:14.003Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Make 4 paragraph long story"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "WsVMjcR",
+      "role": "assistant",
+      "status": {
+        "type": "complete",
+        "reason": "stop"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": " I'd be happy to write a 4-paragraph story for you! Here it is:\n\n---\n\n**The Lighthouse Keeper's Secret**\n\nFor forty-seven years, old Thomas had climbed the spiral stairs of Crescent Point Lighthouse every evening at dusk. The townspeople of Harbor's Edge considered him a harmless eccentric, a man who talked more to the seagulls than to his fellow humans. What they didn't know was that Thomas kept a weathered leather journal hidden beneath the floorboards of the lantern room\u2014a book filled with coordinates, strange symbols, and descriptions of lights that moved beneath the waves, lights that had no business existing in the deep.\n\nOn the night of the autumn equinox, a storm unlike any Thomas had witnessed in his long tenure began to brew. The wind howled like a wounded animal, and waves crashed against the rocky cliffs with such fury that the ancient lighthouse seemed to groan in protest. Yet Thomas didn't seek shelter. Instead, he climbed to his post and opened the hidden journal to a page marked with a silver ribbon. The coordinates listed there matched exactly where the storm raged most violently, where the water churned green and foamy.\n\nWhen the clock struck midnight, the impossible happened. The tempest parted like a curtain, and from the depths emerged a vessel of pearl and coral, its sails made of what looked like woven moonlight. Thomas descended to the landing platform where he had waited every equinox for decades, his heart hammering against his ribs. From the ship came a figure in robes the color of sea glass, and though they had no mouths that Thomas could see, he heard their voice clearly in his mind: \"You have kept the covenant, keeper of the boundary. The passage remains sealed for another year.\"\n\nAs dawn broke and the vessel slipped silently back into the depths, Thomas felt the familiar ache in his bones\u2014the price of his service, a year of his life surrendered to powers older than humanity. He returned to his cottage and added a new entry to his journal, noting the date for next year's vigil. The townspeople would find him in the morning, seemingly unchanged, drinking his bitter coffee and feeding the gulls. None would guess that their quiet lighthouse keeper stood as the only barrier between their peaceful harbor and the ancient things that waited hungry in the dark below, or that one day soon, the ledger of his years would finally come due.\n\n---\n\nI hope you enjoyed the story! Let me know if you'd like me to write another one with a different theme or genre."
+        }
+      ],
+      "metadata": {
+        "unstable_state": null,
+        "unstable_annotations": [],
+        "unstable_data": [],
+        "steps": [],
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T05:02:14.004Z"
+    },
+    {
+      "id": "ABDCcU0",
+      "createdAt": "2026-02-21T05:02:34.218Z",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "How's the weather in Jakarta?"
+        }
+      ],
+      "attachments": [],
+      "metadata": {
+        "custom": {}
+      }
+    },
+    {
+      "id": "assistant-96beb9f9-68fb-425d-ba84-0615ff907c4e",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool-call",
+          "toolCallId": "2a291026-52f8-439f-9278-e94f1f52f0d5:tool:0",
+          "toolName": "weather",
+          "args": {
+            "city": "Jakarta"
+          },
+          "argsText": "{\"city\": \"Jakarta\"}"
+        }
+      ],
+      "status": {
+        "type": "requires-action",
+        "reason": "tool-calls"
+      },
+      "metadata": {
+        "custom": {}
+      },
+      "createdAt": "2026-02-21T05:02:55.905418+00:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": "05799d0b-2798-49e1-8659-6895027654bc",
+      "status": "complete",
+      "created_at": "2026-02-21T05:01:56.962847+00:00",
+      "completed_at": "2026-02-21T05:01:56.962855+00:00",
+      "error": null
+    },
+    {
+      "id": "2e684d47-e0a2-436d-84c5-c3fb5598fe4e",
+      "status": "complete",
+      "created_at": "2026-02-21T05:02:19.463575+00:00",
+      "completed_at": "2026-02-21T05:02:19.463581+00:00",
+      "error": null
+    },
+    {
+      "id": "d765d522-b564-4635-8085-ca52177a2fd0",
+      "status": "requires-action",
+      "created_at": "2026-02-21T05:02:35.543802+00:00",
+      "completed_at": "2026-02-21T05:02:35.543814+00:00",
+      "error": null
+    },
+    {
+      "id": "d4ee4d69-a576-40d1-8bf8-4bcddad980c0",
+      "status": "requires-action",
+      "created_at": "2026-02-21T05:02:40.133287+00:00",
+      "completed_at": "2026-02-21T05:02:40.133297+00:00",
+      "error": null
+    },
+    {
+      "id": "de1d0154-ddd3-4323-ad0a-d8d7174b60f9",
+      "status": "requires-action",
+      "created_at": "2026-02-21T05:02:42.914114+00:00",
+      "completed_at": "2026-02-21T05:02:42.914151+00:00",
+      "error": null
+    },
+    {
+      "id": "2a291026-52f8-439f-9278-e94f1f52f0d5",
+      "status": "requires-action",
+      "created_at": "2026-02-21T05:02:55.906849+00:00",
+      "completed_at": "2026-02-21T05:02:55.906861+00:00",
+      "error": null
+    }
+  ],
+  "tool_calls": [
+    {
+      "id": "d765d522-b564-4635-8085-ca52177a2fd0:tool:0",
+      "run_id": "d765d522-b564-4635-8085-ca52177a2fd0",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T05:02:35.539921+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "d4ee4d69-a576-40d1-8bf8-4bcddad980c0:tool:0",
+      "run_id": "d4ee4d69-a576-40d1-8bf8-4bcddad980c0",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T05:02:40.130338+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "de1d0154-ddd3-4323-ad0a-d8d7174b60f9:tool:0",
+      "run_id": "de1d0154-ddd3-4323-ad0a-d8d7174b60f9",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T05:02:42.897591+00:00",
+      "resolved_at": null
+    },
+    {
+      "id": "2a291026-52f8-439f-9278-e94f1f52f0d5:tool:0",
+      "run_id": "2a291026-52f8-439f-9278-e94f1f52f0d5",
+      "tool_name": "weather",
+      "args": {
+        "city": "Jakarta"
+      },
+      "edited_args": null,
+      "decision": "pending",
+      "status": "pending",
+      "created_at": "2026-02-21T05:02:55.903709+00:00",
+      "resolved_at": null
+    }
+  ],
+  "history": {
+    "headId": "ABDCcU0",
+    "messages": [
+      {
+        "parentId": null,
+        "message": {
+          "id": "kgPlyjS",
+          "createdAt": "2026-02-21T05:01:50.186Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What can you do?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "kgPlyjS",
+        "message": {
+          "id": "jDF7elB",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " I can help you with several things:\n\n1. **Generate images** - I can create images using AI models (DALL-E or FLUX) based on your text descriptions. You can specify the image size and style.\n\n2. **Check the weather** - I can get current weather information for any city you specify.\n\n3. **Tell you the current time** - I can provide you with the current date and time.\n\nLet me know if you'd like me to do any of these things! For example, you could ask me to:\n- Generate an image of something specific\n- Check the weather in a particular city\n- Or simply tell you what time it is right now"
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T05:01:50.187Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "jDF7elB",
+        "message": {
+          "id": "E5jxP2k",
+          "createdAt": "2026-02-21T05:02:14.003Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Make 4 paragraph long story"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "E5jxP2k",
+        "message": {
+          "id": "WsVMjcR",
+          "role": "assistant",
+          "status": {
+            "type": "complete",
+            "reason": "stop"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": " I'd be happy to write a 4-paragraph story for you! Here it is:\n\n---\n\n**The Lighthouse Keeper's Secret**\n\nFor forty-seven years, old Thomas had climbed the spiral stairs of Crescent Point Lighthouse every evening at dusk. The townspeople of Harbor's Edge considered him a harmless eccentric, a man who talked more to the seagulls than to his fellow humans. What they didn't know was that Thomas kept a weathered leather journal hidden beneath the floorboards of the lantern room\u2014a book filled with coordinates, strange symbols, and descriptions of lights that moved beneath the waves, lights that had no business existing in the deep.\n\nOn the night of the autumn equinox, a storm unlike any Thomas had witnessed in his long tenure began to brew. The wind howled like a wounded animal, and waves crashed against the rocky cliffs with such fury that the ancient lighthouse seemed to groan in protest. Yet Thomas didn't seek shelter. Instead, he climbed to his post and opened the hidden journal to a page marked with a silver ribbon. The coordinates listed there matched exactly where the storm raged most violently, where the water churned green and foamy.\n\nWhen the clock struck midnight, the impossible happened. The tempest parted like a curtain, and from the depths emerged a vessel of pearl and coral, its sails made of what looked like woven moonlight. Thomas descended to the landing platform where he had waited every equinox for decades, his heart hammering against his ribs. From the ship came a figure in robes the color of sea glass, and though they had no mouths that Thomas could see, he heard their voice clearly in his mind: \"You have kept the covenant, keeper of the boundary. The passage remains sealed for another year.\"\n\nAs dawn broke and the vessel slipped silently back into the depths, Thomas felt the familiar ache in his bones\u2014the price of his service, a year of his life surrendered to powers older than humanity. He returned to his cottage and added a new entry to his journal, noting the date for next year's vigil. The townspeople would find him in the morning, seemingly unchanged, drinking his bitter coffee and feeding the gulls. None would guess that their quiet lighthouse keeper stood as the only barrier between their peaceful harbor and the ancient things that waited hungry in the dark below, or that one day soon, the ledger of his years would finally come due.\n\n---\n\nI hope you enjoyed the story! Let me know if you'd like me to write another one with a different theme or genre."
+            }
+          ],
+          "metadata": {
+            "unstable_state": null,
+            "unstable_annotations": [],
+            "unstable_data": [],
+            "steps": [],
+            "custom": {}
+          },
+          "createdAt": "2026-02-21T05:02:14.004Z"
+        },
+        "runConfig": {}
+      },
+      {
+        "parentId": "WsVMjcR",
+        "message": {
+          "id": "ABDCcU0",
+          "createdAt": "2026-02-21T05:02:34.218Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "How's the weather in Jakarta?"
+            }
+          ],
+          "attachments": [],
+          "metadata": {
+            "custom": {}
+          }
+        },
+        "runConfig": {}
+      }
+    ]
+  }
+}
