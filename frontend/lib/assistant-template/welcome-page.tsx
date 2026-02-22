@@ -6,7 +6,6 @@ import {
   AssistantRuntimeProvider,
   AuiIf,
   ComposerPrimitive,
-  useLocalRuntime,
   type ChatModelAdapter,
 } from "@assistant-ui/react";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
@@ -17,12 +16,12 @@ import {
 } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
-import { visionImageAttachmentAdapter } from "@/lib/vision-attachment-adapter";
 
 import {
   THREAD_API_INITIALIZE,
   WELCOME_INITIAL_MESSAGE_KEY_PREFIX,
 } from "./constants";
+import { useTemplateLocalRuntime } from "./runtime/use-template-local-runtime";
 import type { WelcomeInitialMessagePayload } from "./types";
 
 // Renders the landing composer and bootstraps a new thread on first send.
@@ -88,9 +87,7 @@ export const WelcomePage = () => {
     }),
     [router],
   );
-  const runtime = useLocalRuntime(modelAdapter, {
-    adapters: { attachments: visionImageAttachmentAdapter },
-  });
+  const runtime = useTemplateLocalRuntime({ modelAdapter });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

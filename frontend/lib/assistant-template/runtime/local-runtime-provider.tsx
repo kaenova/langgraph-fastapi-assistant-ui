@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AssistantRuntimeProvider,
   unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-  useLocalRuntime,
   useThread,
   useThreadRuntime,
 } from "@assistant-ui/react";
@@ -12,7 +11,6 @@ import {
 import { Thread } from "@/components/assistant-ui/thread";
 import { WELCOME_INITIAL_MESSAGE_KEY_PREFIX } from "@/lib/assistant-template/constants";
 import type { WelcomeInitialMessagePayload } from "@/lib/assistant-template/types";
-import { visionImageAttachmentAdapter } from "@/lib/vision-attachment-adapter";
 
 import {
   createHistoryAdapter,
@@ -20,6 +18,7 @@ import {
   createRemoteThreadListAdapter,
 } from "./adapters";
 import { requestJson, THREAD_API_BASE } from "./thread-api";
+import { useTemplateLocalRuntime } from "./use-template-local-runtime";
 
 // Appends the welcome-page message once after empty thread history is loaded.
 const InitialWelcomeMessageSender = ({ threadId }: { threadId: string }) => {
@@ -87,11 +86,9 @@ export const LocalRuntimeProvider = ({ threadId }: { threadId: string }) => {
 
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: () =>
-      useLocalRuntime(modelAdapter, {
-        adapters: {
-          history: historyAdapter,
-          attachments: visionImageAttachmentAdapter,
-        },
+      useTemplateLocalRuntime({
+        modelAdapter,
+        historyAdapter,
       }),
     adapter: remoteThreadListAdapter,
   });
