@@ -220,14 +220,20 @@ def _serialize_messages(
 ) -> List[Dict[str, Any]]:
     serialized: List[Dict[str, Any]] = []
     tool_call_lookup: Dict[str, Dict[str, Any]] = {}
+    pending_tool_results: Dict[str, Dict[str, Any]] = {}
 
     for index, message in enumerate(messages):
         if isinstance(message, ToolMessage):
-            tool_call_id = getattr(message, "tool_call_id", None)
-            if tool_call_id and tool_call_id in tool_call_lookup:
-                tool_call_lookup[tool_call_id]["result"] = _stringify(message.content)
+            raw_tool_call_id = getattr(message, "tool_call_id", None)
+            if raw_tool_call_id is not None:
+                tool_call_id = str(raw_tool_call_id)
+                tool_result_payload = {"result": _stringify(message.content)}
                 if getattr(message, "status", "") == "error":
-                    tool_call_lookup[tool_call_id]["isError"] = True
+                    tool_result_payload["isError"] = True
+                if tool_call_id in tool_call_lookup:
+                    tool_call_lookup[tool_call_id].update(tool_result_payload)
+                else:
+                    pending_tool_results[tool_call_id] = tool_result_payload
             continue
 
         role: Optional[str] = None
@@ -270,7 +276,8 @@ def _serialize_messages(
         if role == "assistant" and isinstance(message, AIMessage):
             payload["status"] = {"type": "complete", "reason": "unknown"}
             for tool_call in message.tool_calls or []:
-                tool_call_id = tool_call.get("id") or str(uuid.uuid4())
+                raw_tool_call_id = tool_call.get("id")
+                tool_call_id = str(raw_tool_call_id) if raw_tool_call_id else str(uuid.uuid4())
                 args = tool_call.get("args", {})
                 tool_part: Dict[str, Any] = {
                     "type": "tool-call",
@@ -279,6 +286,9 @@ def _serialize_messages(
                     "args": args,
                     "argsText": _stringify(args),
                 }
+                pending_result = pending_tool_results.pop(tool_call_id, None)
+                if pending_result:
+                    tool_part.update(pending_result)
                 payload["content"].append(tool_part)
                 tool_call_lookup[tool_call_id] = tool_part
         elif role == "user":
@@ -322,6 +332,10 @@ def _build_message_repository(
                     "message": serialized_message,
                 }
                 message_order.append(message_id)
+            else:
+                # Preserve insertion order but keep the latest materialized message
+                # so tool-call result/status fields are not lost in repository payloads.
+                items_by_message_id[message_id]["message"] = serialized_message
             previous_message_id = message_id
 
     safe_head_id = head_id if head_id in items_by_message_id else None

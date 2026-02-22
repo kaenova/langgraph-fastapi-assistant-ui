@@ -176,6 +176,70 @@ const toThreadMessage = (message: ThreadMessageLike, fallbackId: string): Thread
     { type: "complete", reason: "unknown" },
   );
 
+const mergeToolResultsIntoRepository = (
+  repository: BackendMessageRepository | undefined,
+  messages: ThreadMessageLike[],
+): BackendMessageRepository | undefined => {
+  if (!repository) return undefined;
+
+  const byMessageAndToolId = new Map<string, { result?: unknown; isError?: boolean }>();
+  const byToolId = new Map<string, { result?: unknown; isError?: boolean }>();
+
+  for (const message of messages) {
+    if (!Array.isArray(message.content)) continue;
+    for (const part of message.content) {
+      if (!part || typeof part !== "object" || part.type !== "tool-call") continue;
+      const toolCallId = "toolCallId" in part ? part.toolCallId : undefined;
+      if (!toolCallId) continue;
+      const payload = {
+        result: "result" in part ? part.result : undefined,
+        isError: "isError" in part ? part.isError : undefined,
+      };
+      if (payload.result === undefined && payload.isError === undefined) continue;
+      if (message.id) {
+        byMessageAndToolId.set(`${message.id}:${toolCallId}`, payload);
+      }
+      byToolId.set(toolCallId, payload);
+    }
+  }
+
+  if (byMessageAndToolId.size === 0 && byToolId.size === 0) return repository;
+
+  return {
+    ...repository,
+    messages: repository.messages.map((item) => {
+      const content = item.message.content;
+      if (!Array.isArray(content)) return item;
+      let changed = false;
+      const mergedContent = content.map((part) => {
+        if (!part || typeof part !== "object" || part.type !== "tool-call") {
+          return part;
+        }
+        const toolCallId = "toolCallId" in part ? part.toolCallId : undefined;
+        if (!toolCallId || "result" in part) return part;
+        const source =
+          byMessageAndToolId.get(`${item.message.id ?? ""}:${toolCallId}`) ??
+          byToolId.get(toolCallId);
+        if (!source || source.result === undefined) return part;
+        changed = true;
+        return {
+          ...part,
+          result: source.result,
+          ...(source.isError ? { isError: source.isError } : {}),
+        };
+      });
+      if (!changed) return item;
+      return {
+        ...item,
+        message: {
+          ...item.message,
+          content: mergedContent,
+        },
+      };
+    }),
+  };
+};
+
 export const fetchThreadMessages = async (
   threadId: string,
 ): Promise<{
@@ -190,12 +254,15 @@ export const fetchThreadMessages = async (
     messages?: ThreadMessageLike[];
     messageRepository?: BackendMessageRepository;
   };
+  const normalizedMessages = payload.messages ?? [];
   return {
-    messages: (payload.messages ?? []).map((message, index) => {
+    messages: normalizedMessages.map((message, index) => {
       const fallbackId = message.id ?? `snapshot-${index}-${crypto.randomUUID()}`;
       return toThreadMessage(message, fallbackId);
     }),
-    messageRepository: toExportedMessageRepository(payload.messageRepository),
+    messageRepository: toExportedMessageRepository(
+      mergeToolResultsIntoRepository(payload.messageRepository, normalizedMessages),
+    ),
   };
 };
 
@@ -288,7 +355,9 @@ export const streamThreadRun = async ({
           const fallbackId = message.id ?? `stream-${index}-${crypto.randomUUID()}`;
           return toThreadMessage(message, fallbackId);
         }),
-        messageRepository: toExportedMessageRepository(event.messageRepository),
+        messageRepository: toExportedMessageRepository(
+          mergeToolResultsIntoRepository(event.messageRepository, event.messages ?? []),
+        ),
       });
     }
   }
