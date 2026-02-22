@@ -16,17 +16,17 @@ This document explains how functions and data connect end-to-end:
   - Redirects root route to `/welcome`.
 - `frontend/app/welcome/page.tsx`
   - Hosts `WelcomePage`.
-- `frontend/components/assistant-ui/welcome-page.tsx`
+- `frontend/lib/external-store-langgraph/welcome-page.tsx`
   - Captures first user prompt (and attachments) with `useExternalStoreRuntime`.
   - Creates `threadId` and stores first payload in `sessionStorage`.
   - Navigates to `/chat/{threadId}`.
 - `frontend/app/chat/[threadId]/page.tsx`
   - Hosts `ChatThreadPage` with selected thread id.
-- `frontend/components/assistant-ui/chat-thread-page.tsx`
+- `frontend/lib/external-store-langgraph/chat-thread-page.tsx`
   - Main ExternalStore runtime integration (`onNew`, `onEdit`, `onReload`, `setMessages`).
   - Fetches snapshots and consumes token stream + snapshot stream.
   - Maintains per-run token target to avoid appending to old assistant messages.
-- `frontend/lib/external-store-chat.ts`
+- `frontend/lib/external-store-langgraph/external-store-chat.ts`
   - Transport helpers:
     - `fetchThreadMessages`
     - `streamThreadRun`
@@ -64,7 +64,7 @@ This document explains how functions and data connect end-to-end:
 ## 2) Core Data Contracts
 
 ### Frontend -> Backend run payload
-`BackendRunRequest` (`frontend/lib/external-store-chat.ts`)
+`BackendRunRequest` (`frontend/lib/external-store-langgraph/external-store-chat.ts`)
 - `message?: { content, attachments }`
 - `parent_message_id?: string | null`
 - `source_message_id?: string | null`
@@ -87,7 +87,7 @@ These fields are the bridge between UI message graph and LangGraph checkpoint gr
 ## 3) Welcome -> Chat Handoff Flow
 
 1. User enters message in `WelcomePage` composer.
-2. `onNew` in `welcome-page.tsx`:
+2. `onNew` in `lib/external-store-langgraph/welcome-page.tsx`:
    - creates `threadId` (`crypto.randomUUID()`),
    - stores first payload under key:
      - `WELCOME_INITIAL_MESSAGE_KEY_PREFIX + threadId`,
@@ -170,7 +170,7 @@ Important:
 Problem previously:
 - token chunks without early `message_id` could append to last assistant message.
 
-Current fix in `chat-thread-page.tsx`:
+Current fix in `lib/external-store-langgraph/chat-thread-page.tsx`:
 - per-run `tokenTargetMessageIdRef`
 - create temporary target id when `message_id` is not yet available
 - replace temp id with actual id once provided

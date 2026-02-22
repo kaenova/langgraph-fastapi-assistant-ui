@@ -1,4 +1,4 @@
-import { ChatThreadPage } from "@/components/assistant-ui/chat-thread-page";
+import { ChatThreadPage } from "@/lib/external-store-langgraph/chat-thread-page";
 
 type ChatPageProps = {
   params: Promise<{ threadId: string }>;
