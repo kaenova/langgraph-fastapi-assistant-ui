@@ -11,7 +11,6 @@ Here's the feature i want to implement:
   - Integration with Langgraph Fast API backend
   - A streaming output message from the frontend to the backend.
   - Streamed Tool Calling
-  - Human In The Loop Tool Calling (bonus point if you can figure out to change the arguments of the tool called)
   - Message Branching
   - Message Editing
 
