@@ -4,7 +4,7 @@ For Assistant Transport integration you can crawl it in
 https://www.assistant-ui.com/docs/runtimes/assistant-transport.mdx
 
 Here's the feature i want to implement:
-- A Welcome Page. It should be a centered text area with a welcome message. This has no context on the current chat conversation. When submitted, it should redirect to the chat page with a context of the current chat conversation thread.
+- A Welcome Page. It should be a centered text area with a welcome message. This has no context on the current chat conversation. When submitted, it should redirect to the chat page with a context of the current chat conversation thread. A welcome page should have same composer like in the assistant UI, so it support a text and attachment input from the welcome page.
 - A chat page with threadId params like /chat/:threadId
 - The platform should support:
   - Assistant Transport integration
@@ -18,3 +18,9 @@ Here's the feature i want to implement:
 An AI have research on the topic of message branching and editing in the langgraph. You can check the LANGGRAPH_RESEARCH_SUMMARY.md for the brief summary of the research. You can look into each researcher summary on LANGGRAPH_RESEARCH_*.md.
 
 You can change anything in the frontend and backend, but not with the general langgraph flow. You can pick other infrastrcuture for the backend as needed, if you feel dont need the cosmosdb, you can do sqlite first. You can save the a blob data in the backend on local storage.
+
+If you're doing research and found insights information, concept, baseline, important file, or any important information, you can save it in the MEMORY.md file.
+
+If you're doing implementation, you can write how the data flow from each function and files, write your concept in FLOW.md
+
+This task saved in the TASK.md
