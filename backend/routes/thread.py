@@ -216,11 +216,12 @@ def _serialize_messages(
     messages: List[BaseMessage],
     checkpoint_by_message_id: Dict[str, str],
     parent_checkpoint_by_message_id: Dict[str, Optional[str]],
+    snapshot_checkpoint_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     serialized: List[Dict[str, Any]] = []
     tool_call_lookup: Dict[str, Dict[str, Any]] = {}
 
-    for message in messages:
+    for index, message in enumerate(messages):
         if isinstance(message, ToolMessage):
             tool_call_id = getattr(message, "tool_call_id", None)
             if tool_call_id and tool_call_id in tool_call_lookup:
@@ -240,7 +241,15 @@ def _serialize_messages(
         if role is None:
             continue
 
-        message_id = getattr(message, "id", None) or str(uuid.uuid4())
+        raw_message_id = getattr(message, "id", None)
+        if raw_message_id:
+            message_id = str(raw_message_id)
+        else:
+            synthetic_key = (
+                f"{snapshot_checkpoint_id or 'no-checkpoint'}:"
+                f"{index}:{role}:{_stringify(message.content)}"
+            )
+            message_id = f"synthetic-{uuid.uuid5(uuid.NAMESPACE_URL, synthetic_key)}"
         parts = _content_to_parts(message.content)
         checkpoint_id = checkpoint_by_message_id.get(message_id)
         parent_checkpoint_id = parent_checkpoint_by_message_id.get(message_id)
@@ -299,6 +308,7 @@ def _build_message_repository(
             snapshot_messages,
             checkpoint_by_message_id,
             parent_checkpoint_by_message_id,
+            _checkpoint_id_from_config(snapshot.config),
         )
 
         previous_message_id: Optional[str] = None
@@ -314,8 +324,12 @@ def _build_message_repository(
                 message_order.append(message_id)
             previous_message_id = message_id
 
+    safe_head_id = head_id if head_id in items_by_message_id else None
+    if safe_head_id is None and message_order:
+        safe_head_id = message_order[-1]
+
     return {
-        "headId": head_id,
+        "headId": safe_head_id,
         "messages": [items_by_message_id[mid] for mid in message_order],
     }
 
@@ -336,7 +350,10 @@ def _get_thread_snapshot(thread_id: str) -> Dict[str, Any]:
         thread_id
     )
     serialized_messages = _serialize_messages(
-        messages, checkpoint_by_message_id, parent_checkpoint_by_message_id
+        messages,
+        checkpoint_by_message_id,
+        parent_checkpoint_by_message_id,
+        checkpoint_id,
     )
     head_id = serialized_messages[-1]["id"] if serialized_messages else None
     message_repository = _build_message_repository(
@@ -474,13 +491,17 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
                 checkpoint_by_message_id, parent_checkpoint_by_message_id = (
                     _build_checkpoint_indexes(thread_id)
                 )
+                current_checkpoint_id = _checkpoint_id_from_config(
+                    graph.get_state(_graph_config(thread_id)).config
+                )
                 snapshot_payload = {
                     "thread_id": thread_id,
-                    "checkpoint_id": _checkpoint_id_from_config(
-                        graph.get_state(_graph_config(thread_id)).config
-                    ),
+                    "checkpoint_id": current_checkpoint_id,
                     "messages": _serialize_messages(
-                        messages, checkpoint_by_message_id, parent_checkpoint_by_message_id
+                        messages,
+                        checkpoint_by_message_id,
+                        parent_checkpoint_by_message_id,
+                        current_checkpoint_id,
                     ),
                 }
                 snapshot_payload["messageRepository"] = _build_message_repository(

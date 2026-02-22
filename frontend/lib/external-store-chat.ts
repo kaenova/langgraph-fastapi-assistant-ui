@@ -98,6 +98,8 @@ export const toExportedMessageRepository = (
   if (!repository) return undefined;
 
   const messageRepository = new MessageRepository();
+  const messageIds = new Set<string>();
+  let lastMessageId: string | null = null;
   for (const item of repository.messages) {
     const fallbackId = item.message.id ?? crypto.randomUUID();
     const convertedMessage = fromThreadMessageLike(item.message, fallbackId, {
@@ -105,10 +107,18 @@ export const toExportedMessageRepository = (
       reason: "unknown",
     });
     messageRepository.addOrUpdateMessage(item.parentId, convertedMessage);
+    messageIds.add(convertedMessage.id);
+    lastMessageId = convertedMessage.id;
   }
 
+  const requestedHeadId = repository.headId ?? null;
+  const safeHeadId =
+    requestedHeadId && messageIds.has(requestedHeadId)
+      ? requestedHeadId
+      : lastMessageId;
+
   messageRepository.resetHead(
-    repository.headId ?? repository.messages.at(-1)?.message.id ?? null,
+    safeHeadId,
   );
   return messageRepository.export();
 };
