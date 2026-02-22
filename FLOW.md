@@ -44,7 +44,7 @@ This document explains how functions and data connect end-to-end:
   - Mounts routes:
     - `/api/v1/attachments`
     - `/api/v1/*` thread/chat routes
-- `backend/routes/thread.py`
+- `backend/lib/external_store_langgraph/thread_routes.py`
   - Thread state API:
     - `POST /threads` create thread id
     - `GET /threads/{thread_id}/messages` snapshot
@@ -54,6 +54,8 @@ This document explains how functions and data connect end-to-end:
   - Emits NDJSON events:
     - `token` (incremental)
     - `snapshot` (authoritative state)
+- `backend/routes/thread.py`
+  - Thin compatibility export that re-exports `thread_routes` from `lib/external_store_langgraph`.
 - `backend/agent/graph.py`
   - LangGraph state graph with `messages: Annotated[..., add_messages]`.
 - `backend/lib/checkpointer.py`

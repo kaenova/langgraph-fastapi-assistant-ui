@@ -37,7 +37,7 @@ def checkpointer():
         os.environ["COSMOSDB_ENDPOINT"] = os.getenv("COSMOS_ENDPOINT", "")
         os.environ["COSMOSDB_KEY"] = os.getenv("COSMOS_KEY", "")
         _checkpointer_instance = CosmosDBSaver(
-            database_name=os.getenv("COSMOS_DATABASE_NAME"),
+            database_name=os.getenv("COSMOS_DATABASE_NAME", "default"),
             container_name="langgraph_checkpoints",
         )
         print("✅ Using CosmosDB checkpointer")
