@@ -94,7 +94,7 @@ def call_model(state: AgentState, config=None) -> Dict[str, List[BaseMessage]]:
     return {"messages": [response]}
 
 
-def get_graph():
+def get_graph(checkpointer=None):
     """Get or create the graph instance.
 
     Graph is rebuilt on every call to ensure tool changes are picked up.
@@ -124,6 +124,6 @@ def get_graph():
     workflow.add_edge("tools", "agent")
 
     # Compile the graph
-    graph = workflow.compile()
+    graph = workflow.compile(checkpointer=checkpointer)
 
     return graph
