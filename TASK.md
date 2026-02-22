@@ -19,7 +19,7 @@ An AI have research on the topic of message branching and editing in the langgra
 
 You can change anything in the frontend and backend, but not with the general langgraph flow. You can pick other infrastrcuture for the backend as needed, if you feel dont need the cosmosdb, you can do sqlite first. You can save the a blob data in the backend on local storage.
 
-If you're doing research and found insights information, concept, baseline, important file, or any important information, you can save it in the MEMORY.md file.
+Write any findings, insight, important file, and your concept understanding in MEMORY.md
 
 If you're doing implementation, you can write how the data flow from each function and files, write your concept in FLOW.md
 
