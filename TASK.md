@@ -4,7 +4,7 @@ For Assistant Transport integration you can crawl it in
 https://www.assistant-ui.com/docs/runtimes/assistant-transport.mdx
 
 Here's the feature i want to implement:
-- A Welcome Page. It should be a centered text area with a welcome message. This has no context on the current chat conversation. When submitted, it should redirect to the chat page with a context of the current chat conversation thread. A welcome page should have same composer like in the assistant UI, so it support a text and attachment input from the welcome page.
+- A Welcome Page. It should be a centered text area with a welcome message. This has no context on the current chat conversation. When submitted, it should redirect to the chat page with a context of the current chat conversation thread. A welcome page should have same composer like in the assistant UI, so it support a text and attachment input from the welcome page. You can check WELCOME_PAGE.md for more details.
 - A chat page with threadId params like /chat/:threadId
 - The platform should support:
   - Assistant Transport integration
