@@ -5,8 +5,11 @@ import {
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
   type AppendMessage,
+  type ExportedMessageRepository,
+  type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
+import { MessageRepository, fromThreadMessageLike } from "@assistant-ui/core/internal";
 
 export const WELCOME_INITIAL_MESSAGE_KEY_PREFIX = "welcome-initial-message:";
 
@@ -22,9 +25,18 @@ export type BackendRunRequest = {
   run_config?: Record<string, unknown>;
 };
 
+export type BackendMessageRepository = {
+  headId?: string | null;
+  messages: Array<{
+    parentId: string | null;
+    message: ThreadMessageLike;
+  }>;
+};
+
 type BackendSnapshotEvent = {
   type: "snapshot";
   messages: ThreadMessageLike[];
+  messageRepository?: BackendMessageRepository;
 };
 
 type BackendTokenEvent = {
@@ -56,13 +68,49 @@ export const createAttachmentAdapter = () => {
 
 export const fetchThreadMessages = async (
   threadId: string,
-): Promise<ThreadMessageLike[]> => {
+): Promise<{
+  messages: ThreadMessage[];
+  messageRepository?: ExportedMessageRepository;
+}> => {
   const response = await fetch(`/api/be/api/v1/threads/${encodeURIComponent(threadId)}/messages`);
   if (!response.ok) {
     throw new Error(await response.text());
   }
-  const payload = (await response.json()) as { messages?: ThreadMessageLike[] };
-  return payload.messages ?? [];
+  const payload = (await response.json()) as {
+    messages?: ThreadMessageLike[];
+    messageRepository?: BackendMessageRepository;
+  };
+  return {
+    messages: (payload.messages ?? []).map((message, index) =>
+      fromThreadMessageLike(
+        message,
+        message.id ?? `snapshot-${index}-${crypto.randomUUID()}`,
+        { type: "complete", reason: "unknown" },
+      ),
+    ),
+    messageRepository: toExportedMessageRepository(payload.messageRepository),
+  };
+};
+
+export const toExportedMessageRepository = (
+  repository?: BackendMessageRepository,
+): ExportedMessageRepository | undefined => {
+  if (!repository) return undefined;
+
+  const messageRepository = new MessageRepository();
+  for (const item of repository.messages) {
+    const fallbackId = item.message.id ?? crypto.randomUUID();
+    const convertedMessage = fromThreadMessageLike(item.message, fallbackId, {
+      type: "complete",
+      reason: "unknown",
+    });
+    messageRepository.addOrUpdateMessage(item.parentId, convertedMessage);
+  }
+
+  messageRepository.resetHead(
+    repository.headId ?? repository.messages.at(-1)?.message.id ?? null,
+  );
+  return messageRepository.export();
 };
 
 export const streamThreadRun = async ({
@@ -75,7 +123,10 @@ export const streamThreadRun = async ({
   threadId: string;
   payload: BackendRunRequest;
   signal?: AbortSignal;
-  onSnapshot: (messages: ThreadMessageLike[]) => void;
+  onSnapshot: (snapshot: {
+    messages: ThreadMessage[];
+    messageRepository?: ExportedMessageRepository;
+  }) => void;
   onToken?: (token: { messageId: string | null; text: string }) => void;
 }): Promise<void> => {
   const response = await fetch(
@@ -118,7 +169,16 @@ export const streamThreadRun = async ({
         });
         continue;
       }
-      onSnapshot(event.messages ?? []);
+      onSnapshot({
+        messages: (event.messages ?? []).map((message, index) =>
+          fromThreadMessageLike(
+            message,
+            message.id ?? `stream-${index}-${crypto.randomUUID()}`,
+            { type: "complete", reason: "unknown" },
+          ),
+        ),
+        messageRepository: toExportedMessageRepository(event.messageRepository),
+      });
     }
   }
 };

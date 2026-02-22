@@ -249,6 +249,7 @@ def _serialize_messages(
             "id": message_id,
             "role": role,
             "content": parts,
+            "createdAt": None,
             "metadata": {
                 "custom": {
                     "checkpointId": checkpoint_id,
@@ -258,6 +259,7 @@ def _serialize_messages(
         }
 
         if role == "assistant" and isinstance(message, AIMessage):
+            payload["status"] = {"type": "complete", "reason": "unknown"}
             for tool_call in message.tool_calls or []:
                 tool_call_id = tool_call.get("id") or str(uuid.uuid4())
                 args = tool_call.get("args", {})
@@ -270,10 +272,52 @@ def _serialize_messages(
                 }
                 payload["content"].append(tool_part)
                 tool_call_lookup[tool_call_id] = tool_part
+        elif role == "user":
+            payload["attachments"] = []
 
         serialized.append(payload)
 
     return serialized
+
+
+def _build_message_repository(
+    thread_id: str,
+    checkpoint_by_message_id: Dict[str, str],
+    parent_checkpoint_by_message_id: Dict[str, Optional[str]],
+    head_id: Optional[str],
+) -> Dict[str, Any]:
+    items_by_message_id: Dict[str, Dict[str, Any]] = {}
+    message_order: List[str] = []
+
+    for snapshot in _get_history(thread_id):
+        values = snapshot.values if isinstance(snapshot.values, dict) else {}
+        snapshot_messages = values.get("messages", [])
+        if not isinstance(snapshot_messages, list):
+            continue
+
+        serialized = _serialize_messages(
+            snapshot_messages,
+            checkpoint_by_message_id,
+            parent_checkpoint_by_message_id,
+        )
+
+        previous_message_id: Optional[str] = None
+        for serialized_message in serialized:
+            message_id = serialized_message.get("id")
+            if not message_id:
+                continue
+            if message_id not in items_by_message_id:
+                items_by_message_id[message_id] = {
+                    "parentId": previous_message_id,
+                    "message": serialized_message,
+                }
+                message_order.append(message_id)
+            previous_message_id = message_id
+
+    return {
+        "headId": head_id,
+        "messages": [items_by_message_id[mid] for mid in message_order],
+    }
 
 
 def _get_thread_snapshot(thread_id: str) -> Dict[str, Any]:
@@ -294,10 +338,18 @@ def _get_thread_snapshot(thread_id: str) -> Dict[str, Any]:
     serialized_messages = _serialize_messages(
         messages, checkpoint_by_message_id, parent_checkpoint_by_message_id
     )
+    head_id = serialized_messages[-1]["id"] if serialized_messages else None
+    message_repository = _build_message_repository(
+        thread_id,
+        checkpoint_by_message_id,
+        parent_checkpoint_by_message_id,
+        head_id,
+    )
     return {
         "thread_id": thread_id,
         "checkpoint_id": checkpoint_id,
         "messages": serialized_messages,
+        "messageRepository": message_repository,
     }
 
 
@@ -431,6 +483,14 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
                         messages, checkpoint_by_message_id, parent_checkpoint_by_message_id
                     ),
                 }
+                snapshot_payload["messageRepository"] = _build_message_repository(
+                    thread_id,
+                    checkpoint_by_message_id,
+                    parent_checkpoint_by_message_id,
+                    snapshot_payload["messages"][-1]["id"]
+                    if snapshot_payload["messages"]
+                    else None,
+                )
                 yield _encode_event({"type": "snapshot", **snapshot_payload})
 
             yield _encode_event({"type": "snapshot", **_get_thread_snapshot(thread_id)})

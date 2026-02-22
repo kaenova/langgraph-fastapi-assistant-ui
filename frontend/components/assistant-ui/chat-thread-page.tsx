@@ -5,7 +5,8 @@ import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
   type AppendMessage,
-  type ThreadMessageLike,
+  type ExportedMessageRepository,
+  type ThreadMessage,
 } from "@assistant-ui/react";
 
 import { Thread } from "@/components/assistant-ui/thread";
@@ -22,43 +23,70 @@ type ChatThreadPageProps = {
   threadId: string;
 };
 
-const applyTokenToMessages = (
-  currentMessages: ThreadMessageLike[],
+const createRunningAssistantMessage = (
+  messageId: string,
+  text: string,
+): ThreadMessage => {
+  return {
+    id: messageId,
+    role: "assistant",
+    createdAt: new Date(),
+    content: [{ type: "text", text }],
+    status: { type: "running" },
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+};
+
+const applyTokenToRepository = (
+  repository: ExportedMessageRepository | undefined,
   token: {
     targetMessageId: string;
     text: string;
     replaceFromMessageId?: string | null;
   },
-): ThreadMessageLike[] => {
-  if (!token.text || !token.targetMessageId) return currentMessages;
+) => {
+  if (!token.text || !token.targetMessageId) return repository;
 
-  const nextMessages = [...currentMessages];
-  let messageIndex = nextMessages.findIndex((m) => m.id === token.targetMessageId);
+  const currentRepository: ExportedMessageRepository = repository ?? {
+    headId: null,
+    messages: [],
+  };
+  const nextRepository: ExportedMessageRepository = {
+    headId: currentRepository.headId ?? null,
+    messages: currentRepository.messages.map((item) => ({ ...item })),
+  };
+
+  let messageIndex = nextRepository.messages.findIndex(
+    (item) => item.message.id === token.targetMessageId,
+  );
   if (messageIndex === -1 && token.replaceFromMessageId) {
-    messageIndex = nextMessages.findIndex(
-      (m) => m.id === token.replaceFromMessageId,
+    messageIndex = nextRepository.messages.findIndex(
+      (item) => item.message.id === token.replaceFromMessageId,
     );
   }
 
   if (messageIndex === -1) {
-    nextMessages.push({
-      id: token.targetMessageId,
-      role: "assistant",
-      content: [{ type: "text", text: token.text }],
-      metadata: { custom: {} },
-      status: { type: "running" },
+    nextRepository.messages.push({
+      parentId: nextRepository.headId ?? null,
+      message: createRunningAssistantMessage(token.targetMessageId, token.text),
     });
-    return nextMessages;
+    nextRepository.headId = token.targetMessageId;
+    return nextRepository;
   }
 
-  const assistantMessage = nextMessages[messageIndex];
-  if (!assistantMessage || assistantMessage.role !== "assistant") {
-    return nextMessages;
+  const messageItem = nextRepository.messages[messageIndex];
+  if (!messageItem || messageItem.message.role !== "assistant") {
+    return nextRepository;
   }
 
-  const contentArray = Array.isArray(assistantMessage.content)
-    ? [...assistantMessage.content]
-    : [{ type: "text" as const, text: assistantMessage.content }];
+  const assistantMessage = messageItem.message;
+  const contentArray = [...assistantMessage.content];
 
   const lastPart = contentArray[contentArray.length - 1];
   if (lastPart?.type === "text") {
@@ -70,17 +98,36 @@ const applyTokenToMessages = (
     contentArray.push({ type: "text", text: token.text });
   }
 
-  nextMessages[messageIndex] = {
-    ...assistantMessage,
-    id: token.targetMessageId,
-    content: contentArray,
-    status: { type: "running" },
+  const replacedFromMessageId = token.replaceFromMessageId;
+  nextRepository.messages[messageIndex] = {
+    ...messageItem,
+    message: {
+      ...assistantMessage,
+      id: token.targetMessageId,
+      content: contentArray,
+      status: { type: "running" },
+    },
   };
-  return nextMessages;
+
+  if (replacedFromMessageId && replacedFromMessageId !== token.targetMessageId) {
+    for (const item of nextRepository.messages) {
+      if (item.parentId === replacedFromMessageId) {
+        item.parentId = token.targetMessageId;
+      }
+    }
+    if (nextRepository.headId === replacedFromMessageId) {
+      nextRepository.headId = token.targetMessageId;
+    }
+  }
+
+  nextRepository.headId = token.targetMessageId;
+  return nextRepository;
 };
 
 export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
-  const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
+  const [messageRepository, setMessageRepository] =
+    useState<ExportedMessageRepository>();
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -102,7 +149,12 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
           threadId,
           payload,
           signal: controller.signal,
-          onSnapshot: (nextMessages) => setMessages([...nextMessages]),
+          onSnapshot: (snapshot) => {
+            setMessages([...snapshot.messages]);
+            if (snapshot.messageRepository) {
+              setMessageRepository(snapshot.messageRepository);
+            }
+          },
           onToken: (token) => {
             let targetMessageId = token.messageId;
             let replaceFromMessageId: string | null = null;
@@ -123,8 +175,8 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
             }
 
             if (!targetMessageId) return;
-            setMessages((currentMessages) =>
-              applyTokenToMessages(currentMessages, {
+            setMessageRepository((currentRepository) =>
+              applyTokenToRepository(currentRepository, {
                 targetMessageId,
                 text: token.text,
                 replaceFromMessageId,
@@ -194,9 +246,12 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
 
     const initialize = async () => {
       try {
-        const existingMessages = await fetchThreadMessages(threadId);
+        const existingThread = await fetchThreadMessages(threadId);
         if (active) {
-          setMessages(existingMessages);
+          setMessages(existingThread.messages);
+          if (existingThread.messageRepository) {
+            setMessageRepository(existingThread.messageRepository);
+          }
         }
       } catch (initialLoadError) {
         if (!active) return;
@@ -236,11 +291,20 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
     };
   }, [runStream, threadId]);
 
-  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
     isRunning,
     messages,
-    setMessages: (nextMessages) => setMessages([...nextMessages]),
-    convertMessage: (message) => message,
+    messageRepository,
+    setMessages: (nextMessages) => {
+      const next = [...nextMessages];
+      setMessages(next);
+      setMessageRepository((current) => {
+        if (!current) return current;
+        const nextHeadId = next.at(-1)?.id ?? null;
+        if (current.headId === nextHeadId) return current;
+        return { ...current, headId: nextHeadId };
+      });
+    },
     onNew,
     onEdit,
     onReload,
