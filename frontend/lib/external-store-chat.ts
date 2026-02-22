@@ -5,7 +5,9 @@ import {
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
   type AppendMessage,
+  type CompleteAttachment,
   type ExportedMessageRepository,
+  type ThreadUserMessagePart,
   type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
@@ -66,6 +68,114 @@ export const createAttachmentAdapter = () => {
   ]);
 };
 
+const inferImageContentType = (value: string): string => {
+  if (!value.startsWith("data:")) return "image/*";
+  const metadata = value.slice(5).split(",", 1)[0] ?? "";
+  const contentType = metadata.split(";", 1)[0] ?? "";
+  return contentType || "image/*";
+};
+
+const toAttachmentFromUserPart = (
+  messageId: string,
+  index: number,
+  part: ThreadUserMessagePart,
+): CompleteAttachment | null => {
+  const id = `${messageId}-content-${index}`;
+  if (part.type === "image") {
+    return {
+      id,
+      type: "image",
+      name: part.filename ?? `image-${index + 1}`,
+      contentType: inferImageContentType(part.image),
+      status: { type: "complete" },
+      content: [part],
+    };
+  }
+
+  if (part.type === "file") {
+    return {
+      id,
+      type: part.mimeType.startsWith("text/") ? "document" : "file",
+      name: part.filename ?? `file-${index + 1}`,
+      contentType: part.mimeType,
+      status: { type: "complete" },
+      content: [part],
+    };
+  }
+
+  if (part.type === "data") {
+    return {
+      id,
+      type: "file",
+      name: `${part.name}.json`,
+      contentType: "application/json",
+      status: { type: "complete" },
+      content: [part],
+    };
+  }
+
+  if (part.type === "audio") {
+    return {
+      id,
+      type: "file",
+      name: `audio-${index + 1}.${part.audio.format}`,
+      contentType: `audio/${part.audio.format}`,
+      status: { type: "complete" },
+      content: [part],
+    };
+  }
+
+  return null;
+};
+
+const normalizeUserMessageLike = (
+  message: ThreadMessageLike,
+  fallbackId: string,
+): ThreadMessageLike => {
+  if (message.role !== "user" || !Array.isArray(message.content)) return message;
+
+  const textParts: ThreadUserMessagePart[] = [];
+  const derivedAttachments: CompleteAttachment[] = [];
+
+  for (const [index, part] of message.content.entries()) {
+    const attachment = toAttachmentFromUserPart(
+      message.id ?? fallbackId,
+      index,
+      part as ThreadUserMessagePart,
+    );
+    if (attachment) {
+      derivedAttachments.push(attachment);
+      continue;
+    }
+    if ((part as ThreadUserMessagePart).type === "text") {
+      textParts.push(part as ThreadUserMessagePart);
+    }
+  }
+
+  if (derivedAttachments.length === 0) return message;
+
+  const existingAttachments = [...(message.attachments ?? [])];
+  const seenIds = new Set(existingAttachments.map((attachment) => attachment.id));
+  for (const attachment of derivedAttachments) {
+    if (seenIds.has(attachment.id)) continue;
+    seenIds.add(attachment.id);
+    existingAttachments.push(attachment);
+  }
+
+  return {
+    ...message,
+    content: textParts.length > 0 ? textParts : [{ type: "text", text: "" }],
+    attachments: existingAttachments,
+  };
+};
+
+const toThreadMessage = (message: ThreadMessageLike, fallbackId: string): ThreadMessage =>
+  fromThreadMessageLike(
+    normalizeUserMessageLike(message, fallbackId),
+    fallbackId,
+    { type: "complete", reason: "unknown" },
+  );
+
 export const fetchThreadMessages = async (
   threadId: string,
 ): Promise<{
@@ -81,13 +191,10 @@ export const fetchThreadMessages = async (
     messageRepository?: BackendMessageRepository;
   };
   return {
-    messages: (payload.messages ?? []).map((message, index) =>
-      fromThreadMessageLike(
-        message,
-        message.id ?? `snapshot-${index}-${crypto.randomUUID()}`,
-        { type: "complete", reason: "unknown" },
-      ),
-    ),
+    messages: (payload.messages ?? []).map((message, index) => {
+      const fallbackId = message.id ?? `snapshot-${index}-${crypto.randomUUID()}`;
+      return toThreadMessage(message, fallbackId);
+    }),
     messageRepository: toExportedMessageRepository(payload.messageRepository),
   };
 };
@@ -102,10 +209,7 @@ export const toExportedMessageRepository = (
   let lastMessageId: string | null = null;
   for (const item of repository.messages) {
     const fallbackId = item.message.id ?? crypto.randomUUID();
-    const convertedMessage = fromThreadMessageLike(item.message, fallbackId, {
-      type: "complete",
-      reason: "unknown",
-    });
+    const convertedMessage = toThreadMessage(item.message, fallbackId);
     messageRepository.addOrUpdateMessage(item.parentId, convertedMessage);
     messageIds.add(convertedMessage.id);
     lastMessageId = convertedMessage.id;
@@ -180,13 +284,10 @@ export const streamThreadRun = async ({
         continue;
       }
       onSnapshot({
-        messages: (event.messages ?? []).map((message, index) =>
-          fromThreadMessageLike(
-            message,
-            message.id ?? `stream-${index}-${crypto.randomUUID()}`,
-            { type: "complete", reason: "unknown" },
-          ),
-        ),
+        messages: (event.messages ?? []).map((message, index) => {
+          const fallbackId = message.id ?? `stream-${index}-${crypto.randomUUID()}`;
+          return toThreadMessage(message, fallbackId);
+        }),
         messageRepository: toExportedMessageRepository(event.messageRepository),
       });
     }
