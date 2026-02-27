@@ -12,9 +12,13 @@ dependencies = [
     "langchain>=1.2.9",
     "langchain-openai>=1.1.7",
     "langgraph>=1.0.8",
-    "langgraph-checkpoint-cosmosdb>=0.2.5",
-    "langgraph-cosmosdb-checkpointer>=202602240117",
+    "langgraph-cosmosdb-checkpointer>=202602270659",
 ]
 
 [[tool.uv.index]]
+name = "test-pypi"
 url = "https://test.pypi.org/simple/"
+explicit = true
+
+[tool.uv.sources]
+langgraph-cosmosdb-checkpointer = { index = "test-pypi" }
