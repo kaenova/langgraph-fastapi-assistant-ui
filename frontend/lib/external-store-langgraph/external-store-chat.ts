@@ -37,18 +37,24 @@ export type BackendMessageRepository = {
 
 type BackendSnapshotEvent = {
   type: "snapshot";
+  run_id?: string | null;
+  sequence?: number;
   messages: ThreadMessageLike[];
   messageRepository?: BackendMessageRepository;
 };
 
 type BackendTokenEvent = {
   type: "token";
+  run_id?: string | null;
+  sequence?: number;
   message_id?: string | null;
   text: string;
 };
 
 type BackendErrorEvent = {
   type: "error";
+  run_id?: string | null;
+  sequence?: number;
   error: string;
 };
 
@@ -317,8 +323,15 @@ export const streamThreadRun = async ({
   onSnapshot: (snapshot: {
     messages: ThreadMessage[];
     messageRepository?: ExportedMessageRepository;
+    runId: string | null;
+    sequence: number | null;
   }) => void;
-  onToken?: (token: { messageId: string | null; text: string }) => void;
+  onToken?: (token: {
+    messageId: string | null;
+    text: string;
+    runId: string | null;
+    sequence: number | null;
+  }) => void;
 }): Promise<void> => {
   const response = await fetch(
     `/api/be/api/v1/threads/${encodeURIComponent(threadId)}/runs/stream`,
@@ -357,6 +370,8 @@ export const streamThreadRun = async ({
         onToken?.({
           messageId: event.message_id ?? null,
           text: event.text,
+          runId: event.run_id ?? null,
+          sequence: event.sequence ?? null,
         });
         continue;
       }
@@ -368,6 +383,8 @@ export const streamThreadRun = async ({
         messageRepository: toExportedMessageRepository(
           mergeToolResultsIntoRepository(event.messageRepository, event.messages ?? []),
         ),
+        runId: event.run_id ?? null,
+        sequence: event.sequence ?? null,
       });
     }
   }

@@ -3,7 +3,6 @@
 import json
 import logging
 import uuid
-from concurrent.futures import thread
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException
@@ -473,6 +472,7 @@ def get_thread_messages(thread_id: str) -> Dict[str, Any]:
 def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingResponse:
     """Run a thread turn and stream backend-confirmed message snapshots."""
 
+    run_id = str(uuid.uuid4())
     parent_checkpoint_id: Optional[str] = None
     if request.source_message_id and request.message is not None:
         parent_checkpoint_id = _resolve_edit_checkpoint(
@@ -489,6 +489,13 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
         graph_input = {"messages": [_to_human_message(request.message, None)]}
 
     def event_stream() -> Iterable[bytes]:
+        event_sequence = 0
+
+        def _encode_run_event(event: Dict[str, Any]) -> bytes:
+            nonlocal event_sequence
+            event_sequence += 1
+            return _encode_event({"run_id": run_id, "sequence": event_sequence, **event})
+
         try:
             for event in graph.stream(
                 graph_input,
@@ -507,7 +514,7 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
                     text_delta = _extract_text_delta(message.content)
                     if not text_delta:
                         continue
-                    yield _encode_event(
+                    yield _encode_run_event(
                         {
                             "type": "token",
                             "message_id": getattr(message, "id", None),
@@ -519,44 +526,28 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
                 if mode != "values" or not isinstance(payload, dict):
                     continue
 
-                # values-mode snapshot is the canonical state update. We emit both
-                # the linear message list and the repository graph for branching UI.
+                # values-mode snapshots keep in-flight UI content current.
+                # Full authoritative branch state is sent in the final snapshot.
                 messages = payload.get("messages", [])
                 if not isinstance(messages, list):
                     continue
 
-                checkpoint_by_message_id, parent_checkpoint_by_message_id = (
-                    _build_checkpoint_indexes(thread_id)
-                )
-                temp_config = _graph_config(thread_id)
-                print(temp_config)
-                current_checkpoint_id = _checkpoint_id_from_config(
-                    graph.get_state(temp_config).config
-                )
                 snapshot_payload = {
                     "thread_id": thread_id,
-                    "checkpoint_id": current_checkpoint_id,
+                    "checkpoint_id": None,
                     "messages": _serialize_messages(
                         messages,
-                        checkpoint_by_message_id,
-                        parent_checkpoint_by_message_id,
-                        current_checkpoint_id,
+                        {},
+                        {},
+                        None,
                     ),
                 }
-                snapshot_payload["messageRepository"] = _build_message_repository(
-                    thread_id,
-                    checkpoint_by_message_id,
-                    parent_checkpoint_by_message_id,
-                    snapshot_payload["messages"][-1]["id"]
-                    if snapshot_payload["messages"]
-                    else None,
-                )
-                yield _encode_event({"type": "snapshot", **snapshot_payload})
+                yield _encode_run_event({"type": "snapshot", **snapshot_payload})
 
-            yield _encode_event({"type": "snapshot", **_get_thread_snapshot(thread_id)})
+            yield _encode_run_event({"type": "snapshot", **_get_thread_snapshot(thread_id)})
         except Exception as exc:
             logger.exception("Error streaming thread run")
-            yield _encode_event({"type": "error", "error": str(exc)})
+            yield _encode_run_event({"type": "error", "error": str(exc)})
 
     return StreamingResponse(
         event_stream(),

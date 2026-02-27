@@ -44,50 +44,36 @@ const createRunningAssistantMessage = (
   };
 };
 
-// Applies an incremental token to repository state while keeping message lineage consistent.
-const applyTokenToRepository = (
-  repository: ExportedMessageRepository | undefined,
+// Applies an incremental token to the linear message list during active streaming.
+const applyTokenToMessages = (
+  messages: ThreadMessage[],
   token: {
     targetMessageId: string;
     text: string;
     replaceFromMessageId?: string | null;
   },
 ) => {
-  if (!token.text || !token.targetMessageId) return repository;
+  if (!token.text || !token.targetMessageId) return messages;
 
-  const currentRepository: ExportedMessageRepository = repository ?? {
-    headId: null,
-    messages: [],
-  };
-  const nextRepository: ExportedMessageRepository = {
-    headId: currentRepository.headId ?? null,
-    messages: currentRepository.messages.map((item) => ({ ...item })),
-  };
-
-  let messageIndex = nextRepository.messages.findIndex(
-    (item) => item.message.id === token.targetMessageId,
+  const nextMessages = [...messages];
+  let messageIndex = nextMessages.findIndex(
+    (message) => message.id === token.targetMessageId,
   );
   if (messageIndex === -1 && token.replaceFromMessageId) {
-    messageIndex = nextRepository.messages.findIndex(
-      (item) => item.message.id === token.replaceFromMessageId,
+    messageIndex = nextMessages.findIndex(
+      (message) => message.id === token.replaceFromMessageId,
     );
   }
 
   if (messageIndex === -1) {
-    nextRepository.messages.push({
-      parentId: nextRepository.headId ?? null,
-      message: createRunningAssistantMessage(token.targetMessageId, token.text),
-    });
-    nextRepository.headId = token.targetMessageId;
-    return nextRepository;
+    nextMessages.push(createRunningAssistantMessage(token.targetMessageId, token.text));
+    return nextMessages;
   }
 
-  const messageItem = nextRepository.messages[messageIndex];
-  if (!messageItem || messageItem.message.role !== "assistant") {
-    return nextRepository;
+  const assistantMessage = nextMessages[messageIndex];
+  if (!assistantMessage || assistantMessage.role !== "assistant") {
+    return nextMessages;
   }
-
-  const assistantMessage = messageItem.message;
   const contentArray = [...assistantMessage.content];
 
   const lastPart = contentArray[contentArray.length - 1];
@@ -100,30 +86,14 @@ const applyTokenToRepository = (
     contentArray.push({ type: "text", text: token.text });
   }
 
-  const replacedFromMessageId = token.replaceFromMessageId;
-  nextRepository.messages[messageIndex] = {
-    ...messageItem,
-    message: {
-      ...assistantMessage,
-      id: token.targetMessageId,
-      content: contentArray,
-      status: { type: "running" },
-    },
+  nextMessages[messageIndex] = {
+    ...assistantMessage,
+    id: token.targetMessageId,
+    content: contentArray,
+    status: { type: "running" },
   };
 
-  if (replacedFromMessageId && replacedFromMessageId !== token.targetMessageId) {
-    for (const item of nextRepository.messages) {
-      if (item.parentId === replacedFromMessageId) {
-        item.parentId = token.targetMessageId;
-      }
-    }
-    if (nextRepository.headId === replacedFromMessageId) {
-      nextRepository.headId = token.targetMessageId;
-    }
-  }
-
-  nextRepository.headId = token.targetMessageId;
-  return nextRepository;
+  return nextMessages;
 };
 
 // Hosts the chat-thread runtime that syncs state with LangGraph-backed external store endpoints.
@@ -136,6 +106,9 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const processedInitialPayloadRef = useRef(false);
   const tokenTargetMessageIdRef = useRef<string | null>(null);
+  const activeStreamSessionIdRef = useRef<string | null>(null);
+  const activeBackendRunIdRef = useRef<string | null>(null);
+  const lastBackendSequenceRef = useRef(0);
   const attachmentAdapter = useMemo(createAttachmentAdapter, []);
 
   // Starts a backend run stream and reconciles token/snapshot events into runtime state.
@@ -143,7 +116,11 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
     async (payload: BackendRunRequest) => {
       abortControllerRef.current?.abort();
       const controller = new AbortController();
+      const streamSessionId = crypto.randomUUID();
       abortControllerRef.current = controller;
+      activeStreamSessionIdRef.current = streamSessionId;
+      activeBackendRunIdRef.current = null;
+      lastBackendSequenceRef.current = 0;
       tokenTargetMessageIdRef.current = null;
 
       setError(null);
@@ -154,12 +131,41 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
           payload,
           signal: controller.signal,
           onSnapshot: (snapshot) => {
+            if (activeStreamSessionIdRef.current !== streamSessionId) return;
+            if (snapshot.runId) {
+              if (
+                activeBackendRunIdRef.current &&
+                activeBackendRunIdRef.current !== snapshot.runId
+              ) {
+                return;
+              }
+              activeBackendRunIdRef.current = snapshot.runId;
+            }
+            if (snapshot.sequence != null) {
+              if (snapshot.sequence <= lastBackendSequenceRef.current) return;
+              lastBackendSequenceRef.current = snapshot.sequence;
+            }
             setMessages([...snapshot.messages]);
             if (snapshot.messageRepository) {
               setMessageRepository(snapshot.messageRepository);
             }
           },
           onToken: (token) => {
+            if (activeStreamSessionIdRef.current !== streamSessionId) return;
+            if (token.runId) {
+              if (
+                activeBackendRunIdRef.current &&
+                activeBackendRunIdRef.current !== token.runId
+              ) {
+                return;
+              }
+              activeBackendRunIdRef.current = token.runId;
+            }
+            if (token.sequence != null) {
+              if (token.sequence <= lastBackendSequenceRef.current) return;
+              lastBackendSequenceRef.current = token.sequence;
+            }
+
             let targetMessageId = token.messageId;
             let replaceFromMessageId: string | null = null;
 
@@ -179,8 +185,8 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
             }
 
             if (!targetMessageId) return;
-            setMessageRepository((currentRepository) =>
-              applyTokenToRepository(currentRepository, {
+            setMessages((currentMessages) =>
+              applyTokenToMessages(currentMessages, {
                 targetMessageId,
                 text: token.text,
                 replaceFromMessageId,
@@ -195,14 +201,20 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
         ) {
           return;
         }
+        if (activeStreamSessionIdRef.current !== streamSessionId) return;
         setError(
           streamError instanceof Error
             ? streamError.message
             : "Failed to stream response",
         );
       } finally {
-        tokenTargetMessageIdRef.current = null;
-        setIsRunning(false);
+        if (activeStreamSessionIdRef.current === streamSessionId) {
+          activeStreamSessionIdRef.current = null;
+          activeBackendRunIdRef.current = null;
+          lastBackendSequenceRef.current = 0;
+          tokenTargetMessageIdRef.current = null;
+          setIsRunning(false);
+        }
       }
     },
     [threadId],
@@ -253,6 +265,25 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
     let active = true;
 
     const initialize = async () => {
+      const key = `${WELCOME_INITIAL_MESSAGE_KEY_PREFIX}${threadId}`;
+      const rawPayload = sessionStorage.getItem(key);
+      if (rawPayload && !processedInitialPayloadRef.current && active) {
+        processedInitialPayloadRef.current = true;
+        sessionStorage.removeItem(key);
+        try {
+          const payload = JSON.parse(rawPayload) as BackendRunRequest["message"];
+          if (!payload) return;
+          await runStream({ message: payload });
+          return;
+        } catch (payloadError) {
+          setError(
+            payloadError instanceof Error
+              ? payloadError.message
+              : "Failed to start welcome message",
+          );
+        }
+      }
+
       try {
         const existingThread = await fetchThreadMessages(threadId);
         if (active) {
@@ -275,13 +306,12 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
       }
       processedInitialPayloadRef.current = true;
 
-      const key = `${WELCOME_INITIAL_MESSAGE_KEY_PREFIX}${threadId}`;
-      const rawPayload = sessionStorage.getItem(key);
-      if (!rawPayload) return;
+      const deferredRawPayload = sessionStorage.getItem(key);
+      if (!deferredRawPayload) return;
 
       sessionStorage.removeItem(key);
       try {
-        const payload = JSON.parse(rawPayload) as BackendRunRequest["message"];
+        const payload = JSON.parse(deferredRawPayload) as BackendRunRequest["message"];
         if (!payload) return;
         await runStream({ message: payload });
       } catch (payloadError) {
@@ -302,7 +332,7 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
   const runtime = useExternalStoreRuntime<ThreadMessage>({
     isRunning,
     messages,
-    messageRepository,
+    messageRepository: isRunning ? undefined : messageRepository,
     setMessages: (nextMessages) => {
       const next = [...nextMessages];
       setMessages(next);
@@ -318,6 +348,10 @@ export const ChatThreadPage: FC<ChatThreadPageProps> = ({ threadId }) => {
     onReload,
     onCancel: async () => {
       abortControllerRef.current?.abort();
+      activeStreamSessionIdRef.current = null;
+      activeBackendRunIdRef.current = null;
+      lastBackendSequenceRef.current = 0;
+      tokenTargetMessageIdRef.current = null;
       setIsRunning(false);
     },
     adapters: {

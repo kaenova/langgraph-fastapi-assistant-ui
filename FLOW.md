@@ -73,9 +73,14 @@ This document explains how functions and data connect end-to-end:
 - `run_config?: Record<string, unknown>`
 
 ### Backend stream events (NDJSON)
-- `{"type":"token","message_id": "...", "text":"..."}`
-- `{"type":"snapshot","thread_id":"...","checkpoint_id":"...","messages":[...]}`
-- `{"type":"error","error":"..."}`
+- `{"type":"token","run_id":"...","sequence":1,"message_id":"...","text":"..."}`
+- `{"type":"snapshot","run_id":"...","sequence":2,"thread_id":"...","checkpoint_id":"...","messages":[...],"messageRepository":{...}}`
+- `{"type":"error","run_id":"...","sequence":N,"error":"..."}`
+
+Notes:
+- During active streaming, snapshot events may omit `messageRepository` to reduce payload size.
+- The final snapshot remains authoritative and includes full `messageRepository` for branching state.
+- Frontend drops stale/out-of-order events by run identity and sequence.
 
 ### Snapshot message metadata
 Each serialized message includes:
@@ -95,9 +100,9 @@ These fields are the bridge between UI message graph and LangGraph checkpoint gr
      - `WELCOME_INITIAL_MESSAGE_KEY_PREFIX + threadId`,
    - navigates to `/chat/{threadId}`.
 3. `ChatThreadPage` loads:
-   - fetches existing thread snapshot (`GET /threads/{threadId}/messages`),
-   - checks sessionStorage handoff key,
-   - if present, submits that payload to `/runs/stream`,
+   - checks sessionStorage handoff key first,
+   - if present, submits that payload to `/runs/stream` (skipping initial snapshot fetch),
+   - otherwise fetches existing thread snapshot (`GET /threads/{threadId}/messages`),
    - removes handoff key.
 
 Result: first message starts from welcome, but conversation state lives in chat thread route.
@@ -116,7 +121,8 @@ Result: first message starts from welcome, but conversation state lives in chat 
 4. Backend runs `graph.stream(..., stream_mode=["messages","values"])`.
 5. Frontend consumes stream:
    - `token` events update current in-flight assistant message incrementally.
-   - `snapshot` events replace with backend-authoritative message graph.
+   - interim `snapshot` events keep UI message content current.
+   - final `snapshot` reconciles backend-authoritative message graph + repository.
 
 ---
 
