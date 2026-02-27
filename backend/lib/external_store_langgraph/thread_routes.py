@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 import uuid
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -181,7 +182,14 @@ def _to_human_message(
 
 def _get_history(thread_id: str) -> List[Any]:
     try:
+        t0 = time.perf_counter()
         history = list(graph.get_state_history(_graph_config(thread_id), limit=500))
+        logger.info(
+            "[profile] get_state_history: %.1fms (%d checkpoints, thread=%s)",
+            (time.perf_counter() - t0) * 1000,
+            len(history),
+            thread_id,
+        )
     except Exception:
         return []
     history.reverse()
@@ -190,13 +198,14 @@ def _get_history(thread_id: str) -> List[Any]:
 
 def _build_checkpoint_indexes(
     thread_id: str,
+    history: Optional[List[Any]] = None,
 ) -> Tuple[Dict[str, str], Dict[str, Optional[str]]]:
     # Build fast lookup maps from message id -> checkpoint lineage.
     # This drives regenerate/edit branching by resolving which checkpoint to fork from.
     message_to_checkpoint: Dict[str, str] = {}
     message_to_parent_checkpoint: Dict[str, Optional[str]] = {}
 
-    for snapshot in _get_history(thread_id):
+    for snapshot in (history if history is not None else _get_history(thread_id)):
         checkpoint_id = _checkpoint_id_from_config(snapshot.config)
         parent_checkpoint_id = _checkpoint_id_from_config(snapshot.parent_config)
         values = snapshot.values if isinstance(snapshot.values, dict) else {}
@@ -320,13 +329,14 @@ def _build_message_repository(
     checkpoint_by_message_id: Dict[str, str],
     parent_checkpoint_by_message_id: Dict[str, Optional[str]],
     head_id: Optional[str],
+    history: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     # Materialize full message graph across checkpoint history so branch picker
     # can switch between persisted alternatives after reload.
     items_by_message_id: Dict[str, Dict[str, Any]] = {}
     message_order: List[str] = []
 
-    for snapshot in _get_history(thread_id):
+    for snapshot in (history if history is not None else _get_history(thread_id)):
         values = snapshot.values if isinstance(snapshot.values, dict) else {}
         snapshot_messages = values.get("messages", [])
         if not isinstance(snapshot_messages, list):
@@ -369,8 +379,14 @@ def _build_message_repository(
 def _get_thread_snapshot(thread_id: str) -> Dict[str, Any]:
     # Return the authoritative thread snapshot (messages + repository graph)
     # consumed by ExternalStoreRuntime on initial load and reconciliation.
+    t_start = time.perf_counter()
+
     try:
+        t0 = time.perf_counter()
         state = graph.get_state(_graph_config(thread_id))
+        logger.info(
+            "[profile] get_state: %.1fms", (time.perf_counter() - t0) * 1000
+        )
     except Exception:
         return {"thread_id": thread_id, "checkpoint_id": None, "messages": []}
 
@@ -380,22 +396,60 @@ def _get_thread_snapshot(thread_id: str) -> Dict[str, Any]:
         messages = []
 
     checkpoint_id = _checkpoint_id_from_config(state.config)
-    checkpoint_by_message_id, parent_checkpoint_by_message_id = (
-        _build_checkpoint_indexes(thread_id)
+
+    t0 = time.perf_counter()
+    history = _get_history(thread_id)
+    logger.info(
+        "[profile] get_history: %.1fms (%d checkpoints)",
+        (time.perf_counter() - t0) * 1000,
+        len(history),
     )
+
+    t0 = time.perf_counter()
+    checkpoint_by_message_id, parent_checkpoint_by_message_id = (
+        _build_checkpoint_indexes(thread_id, history=history)
+    )
+    logger.info(
+        "[profile] build_checkpoint_indexes: %.1fms (indexed %d messages)",
+        (time.perf_counter() - t0) * 1000,
+        len(checkpoint_by_message_id),
+    )
+
+    t0 = time.perf_counter()
     serialized_messages = _serialize_messages(
         messages,
         checkpoint_by_message_id,
         parent_checkpoint_by_message_id,
         checkpoint_id,
     )
+    logger.info(
+        "[profile] serialize_messages (head): %.1fms (%d messages)",
+        (time.perf_counter() - t0) * 1000,
+        len(serialized_messages),
+    )
+
     head_id = serialized_messages[-1]["id"] if serialized_messages else None
+
+    t0 = time.perf_counter()
     message_repository = _build_message_repository(
         thread_id,
         checkpoint_by_message_id,
         parent_checkpoint_by_message_id,
         head_id,
+        history=history,
     )
+    logger.info(
+        "[profile] build_message_repository: %.1fms (%d repo messages)",
+        (time.perf_counter() - t0) * 1000,
+        len(message_repository.get("messages", [])),
+    )
+
+    logger.info(
+        "[profile] get_thread_snapshot TOTAL: %.1fms (thread=%s)",
+        (time.perf_counter() - t_start) * 1000,
+        thread_id,
+    )
+
     return {
         "thread_id": thread_id,
         "checkpoint_id": checkpoint_id,

@@ -20,6 +20,7 @@ from routes.attachment import attachment_routes
 from routes.thread import thread_routes
 
 logging.getLogger("azure.cosmos._cosmos_http_logging_policy").setLevel(logging.WARNING)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
 
 # Initialize FastAPI app
