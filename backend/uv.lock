@@ -114,7 +114,7 @@ requires-dist = [
     { name = "langchain", specifier = ">=1.2.9" },
     { name = "langchain-openai", specifier = ">=1.1.7" },
     { name = "langgraph", specifier = ">=1.0.8" },
-    { name = "langgraph-cosmosdb-checkpointer", specifier = ">=202602270659", index = "https://test.pypi.org/simple/" },
+    { name = "langgraph-cosmosdb-checkpointer", specifier = ">=202602271007", index = "https://test.pypi.org/simple/" },
 ]
 
 [[package]]
@@ -765,7 +765,7 @@ wheels = [
 
 [[package]]
 name = "langgraph-cosmosdb-checkpointer"
-version = "202602270659"
+version = "202602271007"
 source = { registry = "https://test.pypi.org/simple/" }
 dependencies = [
     { name = "anyio" },
@@ -776,9 +776,9 @@ dependencies = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
-sdist = { url = "https://test-files.pythonhosted.org/packages/b1/bd/4fecf24970ce60ae1c6f85518a292cda7698c8ad70d02e361e1a2f2891cb/langgraph_cosmosdb_checkpointer-202602270659.tar.gz", hash = "sha256:c2dc21e8213aa7a21e756339193be3c2b5aa3e2f31d289e2aaec6df2bd3c3670", size = 20526, upload-time = "2026-02-27T06:59:51.956Z" }
+sdist = { url = "https://test-files.pythonhosted.org/packages/af/67/ac0096b37b61b37e60f58dca0bee30ae92581ad94a9b5fd9cb34afcc4c25/langgraph_cosmosdb_checkpointer-202602271007.tar.gz", hash = "sha256:7964d1cfe047905707ea1453e305274b478bb69e5fa2e4979e9f42384ed84927", size = 20792, upload-time = "2026-02-27T10:08:14.247Z" }
 wheels = [
-    { url = "https://test-files.pythonhosted.org/packages/f9/3d/ef820f1dfa58c85b5450c1b031818beedf4414a1c1b4a29d924ddd64ba15/langgraph_cosmosdb_checkpointer-202602270659-py3-none-any.whl", hash = "sha256:18d5bdffee05a21cbfda7ac03f8e66044727d6587fa2bebd2ca68f97d9734bd9", size = 9836, upload-time = "2026-02-27T06:59:51.104Z" },
+    { url = "https://test-files.pythonhosted.org/packages/a8/1b/74a699e384f834b6fd85d169db2fe626ebd3a4d8a75ad4265f5c527261a5/langgraph_cosmosdb_checkpointer-202602271007-py3-none-any.whl", hash = "sha256:433862271db9e678195336b7d161bfc4856e3ca522f36e289cbb5c9f6951316e", size = 10089, upload-time = "2026-02-27T10:08:12.631Z" },
 ]
 
 [[package]]
