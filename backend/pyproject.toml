@@ -13,4 +13,8 @@ dependencies = [
     "langchain-openai>=1.1.7",
     "langgraph>=1.0.8",
     "langgraph-checkpoint-cosmosdb>=0.2.5",
+    "langgraph-cosmosdb-checkpointer>=202602240117",
 ]
+
+[[tool.uv.index]]
+url = "https://test.pypi.org/simple/"

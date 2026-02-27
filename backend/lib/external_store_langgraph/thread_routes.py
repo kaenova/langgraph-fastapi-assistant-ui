@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from concurrent.futures import thread
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException
@@ -48,7 +49,9 @@ class ThreadCreateResponse(BaseModel):
     thread_id: str
 
 
-def _graph_config(thread_id: str, checkpoint_id: Optional[str] = None) -> Dict[str, Any]:
+def _graph_config(
+    thread_id: str, checkpoint_id: Optional[str] = None
+) -> Dict[str, Any]:
     configurable: Dict[str, Any] = {"thread_id": thread_id}
     if checkpoint_id:
         configurable["checkpoint_id"] = checkpoint_id
@@ -109,7 +112,9 @@ def _content_to_parts(content: Any) -> List[Dict[str, Any]]:
     return parts or [{"type": "text", "text": ""}]
 
 
-def _attachments_to_openai_parts(attachments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _attachments_to_openai_parts(
+    attachments: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     parts: List[Dict[str, Any]] = []
     for attachment in attachments:
         if not isinstance(attachment, dict):
@@ -148,12 +153,17 @@ def _to_human_message(
                 continue
             item_type = item.get("type")
             if item_type == "text":
-                content_parts.append({"type": "text", "text": _stringify(item.get("text", ""))})
+                content_parts.append(
+                    {"type": "text", "text": _stringify(item.get("text", ""))}
+                )
             elif item_type == "image":
                 image_url = item.get("image")
                 if image_url:
                     content_parts.append(
-                        {"type": "image_url", "image_url": {"url": _stringify(image_url)}}
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": _stringify(image_url)},
+                        }
                     )
 
     content_parts.extend(_attachments_to_openai_parts(message_input.attachments))
@@ -282,7 +292,9 @@ def _serialize_messages(
             payload["status"] = {"type": "complete", "reason": "unknown"}
             for tool_call in message.tool_calls or []:
                 raw_tool_call_id = tool_call.get("id")
-                tool_call_id = str(raw_tool_call_id) if raw_tool_call_id else str(uuid.uuid4())
+                tool_call_id = (
+                    str(raw_tool_call_id) if raw_tool_call_id else str(uuid.uuid4())
+                )
                 args = tool_call.get("args", {})
                 tool_part: Dict[str, Any] = {
                     "type": "tool-call",
@@ -369,8 +381,8 @@ def _get_thread_snapshot(thread_id: str) -> Dict[str, Any]:
         messages = []
 
     checkpoint_id = _checkpoint_id_from_config(state.config)
-    checkpoint_by_message_id, parent_checkpoint_by_message_id = _build_checkpoint_indexes(
-        thread_id
+    checkpoint_by_message_id, parent_checkpoint_by_message_id = (
+        _build_checkpoint_indexes(thread_id)
     )
     serialized_messages = _serialize_messages(
         messages,
@@ -405,8 +417,8 @@ def _resolve_parent_checkpoint(thread_id: str, parent_message_id: str) -> str:
 
 
 def _resolve_edit_checkpoint(thread_id: str, source_message_id: str) -> str:
-    checkpoint_by_message_id, parent_checkpoint_by_message_id = _build_checkpoint_indexes(
-        thread_id
+    checkpoint_by_message_id, parent_checkpoint_by_message_id = (
+        _build_checkpoint_indexes(thread_id)
     )
     checkpoint_id = parent_checkpoint_by_message_id.get(source_message_id)
     if not checkpoint_id:
@@ -467,14 +479,14 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
             thread_id, request.source_message_id
         )
     elif request.parent_message_id:
-        parent_checkpoint_id = _resolve_parent_checkpoint(thread_id, request.parent_message_id)
+        parent_checkpoint_id = _resolve_parent_checkpoint(
+            thread_id, request.parent_message_id
+        )
 
     config = _graph_config(thread_id, checkpoint_id=parent_checkpoint_id)
     graph_input: Optional[Dict[str, Any]] = None
     if request.message is not None:
-        graph_input = {
-            "messages": [_to_human_message(request.message, None)]
-        }
+        graph_input = {"messages": [_to_human_message(request.message, None)]}
 
     def event_stream() -> Iterable[bytes]:
         try:
@@ -516,8 +528,10 @@ def stream_thread_run(thread_id: str, request: StreamRunRequest) -> StreamingRes
                 checkpoint_by_message_id, parent_checkpoint_by_message_id = (
                     _build_checkpoint_indexes(thread_id)
                 )
+                temp_config = _graph_config(thread_id)
+                print(temp_config)
                 current_checkpoint_id = _checkpoint_id_from_config(
-                    graph.get_state(_graph_config(thread_id)).config
+                    graph.get_state(temp_config).config
                 )
                 snapshot_payload = {
                     "thread_id": thread_id,
