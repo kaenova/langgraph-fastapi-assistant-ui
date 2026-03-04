@@ -21,3 +21,10 @@ So far, we have 2 candidates that're "stable" for now.
   - Saved in a Langgraph checkpointer
   - A command sent to the backend on what checkpoint and thread to invoke
   - Doing conversion on Langgraph Messages into Assistant UI format 
+
+
+Other advance feature on top of the runtime
+- Compaction build on LocalRuntime (branch `exp/local-runtime-compaction`)
+   - Backend will check on the end of the stream what's total estimated token, next it will determine weather it needs compaction or not. If needs compaction backend will send a custom metadata `next_should_compact` to true.
+   - Frontend will recieve this message metadata and will automatically invoke a new request with all the messages to compact. It will return a new a compacted AI Message to the frontend with metadata `compaction` to true.
+   - Messages lifecycle to be sent to the backend is from messages of `compaction` set to true onward.
