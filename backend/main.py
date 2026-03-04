@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.attachment import attachment_routes
 from routes.chat import chat_routes
+from routes.compaction import compaction_routes
 from routes.thread import thread_routes
 
 logging.getLogger("azure.cosmos._cosmos_http_logging_policy").setLevel(logging.WARNING)
@@ -49,6 +50,11 @@ app.include_router(
     chat_routes,
     prefix="/api/v1/threads",
     tags=["chat"],
+)
+app.include_router(
+    compaction_routes,
+    prefix="/api/v1/compact",
+    tags=["compaction"],
 )
 
 if __name__ == "__main__":

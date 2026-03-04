@@ -7,6 +7,7 @@ import {
 import { createAssistantStream } from "assistant-stream";
 
 import { parseBackendStream } from "./backend-stream";
+import { sliceMessagesFromLatestCompaction } from "./compaction-utils";
 import { normalizeHistoryRepository } from "./history-repository";
 import { requestJson, THREAD_API_BASE } from "./thread-api";
 import type { HistoryRepository } from "./types";
@@ -16,6 +17,8 @@ export function createModelAdapter(threadId: string): ChatModelAdapter {
   return {
     async *run({ messages, abortSignal, runConfig, unstable_threadId }) {
       const activeThreadId = unstable_threadId ?? threadId;
+      const compactedContextMessages =
+        sliceMessagesFromLatestCompaction(messages);
       const response = await fetch(
         `${THREAD_API_BASE}/${encodeURIComponent(activeThreadId)}/runs/stream`,
         {
@@ -23,7 +26,7 @@ export function createModelAdapter(threadId: string): ChatModelAdapter {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ messages, runConfig }),
+          body: JSON.stringify({ messages: compactedContextMessages, runConfig }),
           signal: abortSignal,
         },
       );
@@ -121,6 +124,7 @@ export function createModelAdapter(threadId: string): ChatModelAdapter {
               event.status === "requires-action"
                 ? { type: "requires-action", reason: "tool-calls" }
                 : { type: "complete", reason: "stop" },
+            metadata: event.metadata,
           };
           continue;
         }

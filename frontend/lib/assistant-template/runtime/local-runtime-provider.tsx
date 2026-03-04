@@ -17,7 +17,16 @@ import {
   createModelAdapter,
   createRemoteThreadListAdapter,
 } from "./adapters";
-import { requestJson, THREAD_API_BASE } from "./thread-api";
+import {
+  hasNextShouldCompactFlag,
+  sliceMessagesFromLatestCompaction,
+  toAssistantCustomMetadata,
+} from "./compaction-utils";
+import {
+  COMPACTION_API_BASE,
+  requestJson,
+  THREAD_API_BASE,
+} from "./thread-api";
 import { useTemplateLocalRuntime } from "./use-template-local-runtime";
 
 // Appends the welcome-page message once after empty thread history is loaded.
@@ -65,6 +74,92 @@ const InitialWelcomeMessageSender = ({ threadId }: { threadId: string }) => {
     threadState?.isLoading,
     threadState?.messages.length,
   ]);
+
+  return null;
+};
+
+type CompactResponse = {
+  message: {
+    role?: string;
+    content?: unknown;
+    metadata?: unknown;
+    createdAt?: string;
+  };
+};
+
+// Auto-runs compaction when backend marks the latest assistant message.
+const ThreadCompactionSync = () => {
+  const threadRuntime = useThreadRuntime({ optional: true });
+  const threadState = useThread({ optional: true });
+  const isCompactingRef = useRef(false);
+  const attemptedFlagMessageIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!threadRuntime || !threadState) {
+      return;
+    }
+    if (threadState.isLoading || threadState.isRunning) {
+      return;
+    }
+    if (threadState.messages.length === 0 || isCompactingRef.current) {
+      return;
+    }
+
+    const lastMessage = threadState.messages[threadState.messages.length - 1];
+    if (!hasNextShouldCompactFlag(lastMessage)) {
+      return;
+    }
+
+    const lastMessageId =
+      lastMessage && typeof lastMessage.id === "string" ? lastMessage.id : null;
+    if (!lastMessageId) {
+      return;
+    }
+    if (attemptedFlagMessageIdRef.current === lastMessageId) {
+      return;
+    }
+
+    attemptedFlagMessageIdRef.current = lastMessageId;
+    isCompactingRef.current = true;
+
+    const compactContextMessages = sliceMessagesFromLatestCompaction(
+      threadState.messages,
+    );
+
+    const runCompaction = async () => {
+      try {
+        const response = await requestJson<CompactResponse>(COMPACTION_API_BASE, {
+          method: "POST",
+          body: JSON.stringify({ messages: compactContextMessages }),
+        });
+
+        const compactedMessage = response.message;
+        if (compactedMessage?.role !== "assistant") {
+          return;
+        }
+
+        const messageContent = Array.isArray(compactedMessage.content)
+          ? compactedMessage.content
+          : [];
+        const metadata = toAssistantCustomMetadata(compactedMessage.metadata);
+
+        threadRuntime.append({
+          role: "assistant",
+          content: messageContent,
+          metadata,
+          createdAt: compactedMessage.createdAt
+            ? new Date(compactedMessage.createdAt)
+            : undefined,
+        });
+      } catch {
+        // noop
+      } finally {
+        isCompactingRef.current = false;
+      }
+    };
+
+    void runCompaction();
+  }, [threadRuntime, threadState]);
 
   return null;
 };
@@ -129,6 +224,7 @@ export const LocalRuntimeProvider = ({ threadId }: { threadId: string }) => {
         {isReady ? (
           <>
             <InitialWelcomeMessageSender threadId={threadId} />
+            <ThreadCompactionSync />
             <Thread />
           </>
         ) : (

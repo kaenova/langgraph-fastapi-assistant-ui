@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
+from langchain_core.messages.utils import count_tokens_approximately
 from pydantic import BaseModel, Field
 
 from agent.model import model
@@ -19,6 +27,22 @@ from lib.thread_store import thread_store
 
 chat_routes = APIRouter()
 MAX_INLINE_IMAGE_URL_CHARS = 2_000_000
+DEFAULT_COMPACTION_TRIGGER_TOKENS = 100
+
+
+def _read_compaction_trigger_tokens() -> int:
+    """Read compaction trigger threshold from environment."""
+    raw_value = os.getenv(
+        "COMPACTION_TRIGGER_TOKENS", str(DEFAULT_COMPACTION_TRIGGER_TOKENS)
+    )
+    try:
+        parsed = int(raw_value)
+    except (TypeError, ValueError):
+        return DEFAULT_COMPACTION_TRIGGER_TOKENS
+    return parsed if parsed > 0 else DEFAULT_COMPACTION_TRIGGER_TOKENS
+
+
+COMPACTION_TRIGGER_TOKENS = _read_compaction_trigger_tokens()
 
 
 class RunRequest(BaseModel):
@@ -135,7 +159,9 @@ def _to_langchain_user_content_blocks(
             if not isinstance(attachment_content, list):
                 continue
             for part in attachment_content:
-                has_image = _append_user_content_block(part, content_blocks) or has_image
+                has_image = (
+                    _append_user_content_block(part, content_blocks) or has_image
+                )
 
     return content_blocks, has_image
 
@@ -215,9 +241,7 @@ def _to_langchain_messages(messages: list[dict[str, Any]]) -> list[BaseMessage]:
                 for block in user_content_blocks
                 if block.get("type") == "text"
             ).strip()
-            converted.append(
-                HumanMessage(content=text)
-            )
+            converted.append(HumanMessage(content=text))
             continue
 
         if role == "assistant":
@@ -260,6 +284,15 @@ def _assistant_text_from_response(response: AIMessage) -> str:
         ]
         return "".join(texts)
     return str(content)
+
+
+def _estimate_total_tokens(messages: list[dict[str, Any]]) -> int:
+    """Estimate total prompt tokens for assistant-ui messages."""
+    try:
+        langchain_messages = _to_langchain_messages(messages)
+        return int(count_tokens_approximately(langchain_messages))
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 @chat_routes.post("/{thread_id}/runs/stream")
@@ -441,7 +474,9 @@ async def run_stream(thread_id: str, payload: RunRequest) -> StreamingResponse:
                         {"id": tool_call_id, "name": tool_name, "args": args}
                     )
                     tool_messages.append(
-                        ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)
+                        ToolMessage(
+                            content=json.dumps(result), tool_call_id=tool_call_id
+                        )
                     )
 
                 current_messages.append(
@@ -462,6 +497,13 @@ async def run_stream(thread_id: str, payload: RunRequest) -> StreamingResponse:
                 "createdAt": _now_iso(),
             }
             persisted_messages = [*payload.messages, assistant_message]
+            total_tokens = _estimate_total_tokens(persisted_messages)
+            assistant_custom_metadata = {
+                "total_tokens": total_tokens,
+                "next_should_compact": total_tokens >= COMPACTION_TRIGGER_TOKENS,
+            }
+            assistant_message["metadata"] = {"custom": assistant_custom_metadata}
+
             thread_store.replace_messages(thread_id, persisted_messages)
             thread_store.append_run(
                 thread_id,
@@ -473,7 +515,13 @@ async def run_stream(thread_id: str, payload: RunRequest) -> StreamingResponse:
                     "error": None,
                 },
             )
-            yield _event_line({"type": "done", "status": "complete"})
+            yield _event_line(
+                {
+                    "type": "done",
+                    "status": "complete",
+                    "metadata": assistant_message.get("metadata"),
+                }
+            )
         except Exception as exc:  # noqa: BLE001
             thread_store.append_run(
                 thread_id,

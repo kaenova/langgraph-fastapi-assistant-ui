@@ -1,4 +1,5 @@
 export const THREAD_API_BASE = "/api/be/api/v1/threads";
+export const COMPACTION_API_BASE = "/api/be/api/v1/compact";
 
 // Shared JSON fetch helper that enforces content type and throws on API errors.
 export async function requestJson<T>(

@@ -16,7 +16,13 @@ export type BackendEvent =
       result: unknown;
       isError?: boolean;
     }
-  | { type: "done"; status: "complete" | "requires-action" }
+  | {
+      type: "done";
+      status: "complete" | "requires-action";
+      metadata?: {
+        custom?: Record<string, unknown>;
+      };
+    }
   | { type: "error"; message: string };
 
 export type HistoryRepository = {
