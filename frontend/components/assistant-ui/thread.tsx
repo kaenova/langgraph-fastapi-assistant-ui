@@ -243,7 +243,7 @@ const AssistantMessage: FC = () => {
 
       <div className="aui-assistant-message-footer mt-1 ml-2 flex">
         <BranchPicker />
-        <AssistantActionBar />
+        <AssistantActionBar isCompactionMessage={isCompactionMessage} />
       </div>
     </MessagePrimitive.Root>
   );
@@ -253,13 +253,19 @@ const CompactionDivider: FC = () => {
   return (
     <div className="mb-3 flex items-center gap-3 px-2 text-muted-foreground/80 text-[11px]">
       <div className="h-px flex-1 bg-border" />
-      <span className="uppercase tracking-[0.12em]">---</span>
+      <span className="uppercase tracking-[0.12em]">- Compacted -</span>
       <div className="h-px flex-1 bg-border" />
     </div>
   );
 };
 
-const AssistantActionBar: FC = () => {
+type AssistantActionBarProps = {
+  isCompactionMessage: boolean;
+};
+
+const AssistantActionBar: FC<AssistantActionBarProps> = ({
+  isCompactionMessage,
+}) => {
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -277,11 +283,13 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.Reload asChild>
-        <TooltipIconButton tooltip="Refresh">
-          <RefreshCwIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Reload>
+      {isCompactionMessage ? null : (
+        <ActionBarPrimitive.Reload asChild>
+          <TooltipIconButton tooltip="Refresh">
+            <RefreshCwIcon />
+          </TooltipIconButton>
+        </ActionBarPrimitive.Reload>
+      )}
       <ActionBarMorePrimitive.Root>
         <ActionBarMorePrimitive.Trigger asChild>
           <TooltipIconButton
