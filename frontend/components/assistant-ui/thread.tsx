@@ -17,6 +17,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useMessage,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -29,11 +30,16 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   RefreshCwIcon,
+  SparklesIcon,
   SquareIcon,
 } from "lucide-react";
 import type { FC } from "react";
 
-export const Thread: FC = () => {
+type ThreadProps = {
+  isCompacting?: boolean;
+};
+
+export const Thread: FC<ThreadProps> = ({ isCompacting = false }) => {
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
@@ -58,11 +64,21 @@ export const Thread: FC = () => {
         />
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
+          {isCompacting ? <CompactionStatusBanner /> : null}
           <ThreadScrollToBottom />
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+  );
+};
+
+const CompactionStatusBanner: FC = () => {
+  return (
+    <div className="mx-auto flex w-full max-w-(--thread-max-width) items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-100/70 px-3 py-2 text-amber-900 text-xs backdrop-blur-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+      <SparklesIcon className="size-3.5 animate-pulse" />
+      <span className="font-medium">Compacting conversation context...</span>
+    </div>
   );
 };
 
@@ -205,11 +221,16 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
+  const isCompactionMessage = useMessage(
+    (message) => message.metadata.custom.compaction === true,
+  );
+
   return (
     <MessagePrimitive.Root
       className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
       data-role="assistant"
     >
+      {isCompactionMessage ? <CompactionDivider /> : null}
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
         <MessagePrimitive.Parts
           components={{
@@ -225,6 +246,16 @@ const AssistantMessage: FC = () => {
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+const CompactionDivider: FC = () => {
+  return (
+    <div className="mb-3 flex items-center gap-3 px-2 text-muted-foreground/80 text-[11px]">
+      <div className="h-px flex-1 bg-border" />
+      <span className="uppercase tracking-[0.12em]">---</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
   );
 };
 

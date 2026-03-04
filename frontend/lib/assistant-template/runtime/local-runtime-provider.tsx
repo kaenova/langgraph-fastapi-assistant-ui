@@ -87,12 +87,26 @@ type CompactResponse = {
   };
 };
 
+type ThreadCompactionSyncProps = {
+  threadId: string;
+  onCompactionStateChange: (isCompacting: boolean) => void;
+};
+
 // Auto-runs compaction when backend marks the latest assistant message.
-const ThreadCompactionSync = () => {
+const ThreadCompactionSync = ({
+  threadId,
+  onCompactionStateChange,
+}: ThreadCompactionSyncProps) => {
   const threadRuntime = useThreadRuntime({ optional: true });
   const threadState = useThread({ optional: true });
   const isCompactingRef = useRef(false);
   const attemptedFlagMessageIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    attemptedFlagMessageIdRef.current = null;
+    isCompactingRef.current = false;
+    onCompactionStateChange(false);
+  }, [threadId, onCompactionStateChange]);
 
   useEffect(() => {
     if (!threadRuntime || !threadState) {
@@ -121,6 +135,7 @@ const ThreadCompactionSync = () => {
 
     attemptedFlagMessageIdRef.current = lastMessageId;
     isCompactingRef.current = true;
+    onCompactionStateChange(true);
 
     const compactContextMessages = sliceMessagesFromLatestCompaction(
       threadState.messages,
@@ -155,11 +170,12 @@ const ThreadCompactionSync = () => {
         // noop
       } finally {
         isCompactingRef.current = false;
+        onCompactionStateChange(false);
       }
     };
 
     void runCompaction();
-  }, [threadRuntime, threadState]);
+  }, [threadRuntime, threadState, onCompactionStateChange]);
 
   return null;
 };
@@ -167,6 +183,7 @@ const ThreadCompactionSync = () => {
 // Wires assistant runtime, thread list, and history adapters for a chat thread.
 export const LocalRuntimeProvider = ({ threadId }: { threadId: string }) => {
   const [isReady, setIsReady] = useState(false);
+  const [isCompacting, setIsCompacting] = useState(false);
   const encodedThreadId = encodeURIComponent(threadId);
 
   const modelAdapter = useMemo(() => createModelAdapter(threadId), [threadId]);
@@ -224,8 +241,11 @@ export const LocalRuntimeProvider = ({ threadId }: { threadId: string }) => {
         {isReady ? (
           <>
             <InitialWelcomeMessageSender threadId={threadId} />
-            <ThreadCompactionSync />
-            <Thread />
+            <ThreadCompactionSync
+              threadId={threadId}
+              onCompactionStateChange={setIsCompacting}
+            />
+            <Thread isCompacting={isCompacting} />
           </>
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
