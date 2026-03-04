@@ -25,6 +25,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
+type ComposerAddAttachmentProps = {
+  disabled?: boolean;
+};
+
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
 
@@ -210,7 +214,9 @@ export const ComposerAttachments: FC = () => {
   );
 };
 
-export const ComposerAddAttachment: FC = () => {
+export const ComposerAddAttachment: FC<ComposerAddAttachmentProps> = ({
+  disabled = false,
+}) => {
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <TooltipIconButton
@@ -220,6 +226,7 @@ export const ComposerAddAttachment: FC = () => {
         size="icon"
         className="aui-composer-add-attachment size-8.5 rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
         aria-label="Add Attachment"
+        disabled={disabled}
       >
         <PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
       </TooltipIconButton>

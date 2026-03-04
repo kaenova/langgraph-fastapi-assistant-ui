@@ -33,43 +33,66 @@ import {
   SparklesIcon,
   SquareIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { createContext, useContext, type FC } from "react";
 
 type ThreadProps = {
   isCompacting?: boolean;
 };
 
+const CompactionUiContext = createContext(false);
+
+const useCompactionUiState = () => {
+  return useContext(CompactionUiContext);
+};
+
 export const Thread: FC<ThreadProps> = ({ isCompacting = false }) => {
   return (
-    <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
-      style={{
-        ["--thread-max-width" as string]: "44rem",
-      }}
-    >
-      <ThreadPrimitive.Viewport
-        turnAnchor="top"
-        className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+    <CompactionUiContext.Provider value={isCompacting}>
+      <ThreadPrimitive.Root
+        className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
+        style={{
+          ["--thread-max-width" as string]: "44rem",
+        }}
       >
-        <AuiIf condition={({ thread }) => thread.isEmpty}>
-          <ThreadWelcome />
-        </AuiIf>
+        <ThreadPrimitive.Viewport
+          turnAnchor="top"
+          className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+        >
+          <CompactionInteractionBlocker />
+          <AuiIf condition={({ thread }) => thread.isEmpty}>
+            <ThreadWelcome />
+          </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
-          }}
-        />
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage,
+              EditComposer,
+              AssistantMessage,
+            }}
+          />
 
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
-          {isCompacting ? <CompactionStatusBanner /> : null}
-          <ThreadScrollToBottom />
-          <Composer />
-        </ThreadPrimitive.ViewportFooter>
-      </ThreadPrimitive.Viewport>
-    </ThreadPrimitive.Root>
+          <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
+            {isCompacting ? <CompactionStatusBanner /> : null}
+            <ThreadScrollToBottom />
+            <Composer />
+          </ThreadPrimitive.ViewportFooter>
+        </ThreadPrimitive.Viewport>
+      </ThreadPrimitive.Root>
+    </CompactionUiContext.Provider>
+  );
+};
+
+const CompactionInteractionBlocker: FC = () => {
+  const isCompacting = useCompactionUiState();
+  if (!isCompacting) {
+    return null;
+  }
+
+  return (
+    <div
+      className="absolute inset-0 z-30 cursor-wait bg-transparent"
+      aria-hidden="true"
+    />
   );
 };
 
@@ -83,12 +106,15 @@ const CompactionStatusBanner: FC = () => {
 };
 
 const ThreadScrollToBottom: FC = () => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
         className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
+        disabled={isCompacting}
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -128,6 +154,8 @@ const SUGGESTIONS = [
 ] as const;
 
 const ThreadSuggestions: FC = () => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
       {SUGGESTIONS.map((suggestion, index) => (
@@ -141,6 +169,7 @@ const ThreadSuggestions: FC = () => {
               variant="ghost"
               className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
               aria-label={suggestion.prompt}
+              disabled={isCompacting}
             >
               <span className="aui-thread-welcome-suggestion-text-1 font-medium">
                 {suggestion.title}
@@ -157,6 +186,8 @@ const ThreadSuggestions: FC = () => {
 };
 
 const Composer: FC = () => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
@@ -167,6 +198,7 @@ const Composer: FC = () => {
           rows={1}
           autoFocus
           aria-label="Message input"
+          disabled={isCompacting}
         />
         <ComposerAction />
       </ComposerPrimitive.AttachmentDropzone>
@@ -175,9 +207,11 @@ const Composer: FC = () => {
 };
 
 const ComposerAction: FC = () => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
-      <ComposerAddAttachment />
+      <ComposerAddAttachment disabled={isCompacting} />
       <AuiIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
@@ -188,6 +222,7 @@ const ComposerAction: FC = () => {
             size="icon"
             className="aui-composer-send size-8 rounded-full"
             aria-label="Send message"
+            disabled={isCompacting}
           >
             <ArrowUpIcon className="aui-composer-send-icon size-4" />
           </TooltipIconButton>
@@ -201,6 +236,7 @@ const ComposerAction: FC = () => {
             size="icon"
             className="aui-composer-cancel size-8 rounded-full"
             aria-label="Stop generating"
+            disabled={isCompacting}
           >
             <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
           </Button>
@@ -266,6 +302,8 @@ type AssistantActionBarProps = {
 const AssistantActionBar: FC<AssistantActionBarProps> = ({
   isCompactionMessage,
 }) => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -274,7 +312,7 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({
       className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
       <ActionBarPrimitive.Copy asChild>
-        <TooltipIconButton tooltip="Copy">
+        <TooltipIconButton tooltip="Copy" disabled={isCompacting}>
           <AuiIf condition={({ message }) => message.isCopied}>
             <CheckIcon />
           </AuiIf>
@@ -285,7 +323,7 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({
       </ActionBarPrimitive.Copy>
       {isCompactionMessage ? null : (
         <ActionBarPrimitive.Reload asChild>
-          <TooltipIconButton tooltip="Refresh">
+          <TooltipIconButton tooltip="Refresh" disabled={isCompacting}>
             <RefreshCwIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.Reload>
@@ -295,6 +333,7 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({
           <TooltipIconButton
             tooltip="More"
             className="data-[state=open]:bg-accent"
+            disabled={isCompacting}
           >
             <MoreHorizontalIcon />
           </TooltipIconButton>
@@ -305,7 +344,12 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({
           className="aui-action-bar-more-content z-50 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
         >
           <ActionBarPrimitive.ExportMarkdown asChild>
-            <ActionBarMorePrimitive.Item className="aui-action-bar-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+            <ActionBarMorePrimitive.Item
+              className={cn(
+                "aui-action-bar-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                isCompacting && "pointer-events-none opacity-50",
+              )}
+            >
               <DownloadIcon className="size-4" />
               Export as Markdown
             </ActionBarMorePrimitive.Item>
@@ -339,6 +383,8 @@ const UserMessage: FC = () => {
 };
 
 const UserActionBar: FC = () => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -346,7 +392,11 @@ const UserActionBar: FC = () => {
       className="aui-user-action-bar-root flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
+        <TooltipIconButton
+          tooltip="Edit"
+          className="aui-user-action-edit p-4"
+          disabled={isCompacting}
+        >
           <PencilIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Edit>
@@ -355,21 +405,26 @@ const UserActionBar: FC = () => {
 };
 
 const EditComposer: FC = () => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
       <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
           autoFocus
+          disabled={isCompacting}
         />
         <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" disabled={isCompacting}>
               Cancel
             </Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <Button size="sm">Update</Button>
+            <Button size="sm" disabled={isCompacting}>
+              Update
+            </Button>
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
@@ -381,6 +436,8 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   className,
   ...rest
 }) => {
+  const isCompacting = useCompactionUiState();
+
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
@@ -391,7 +448,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
       {...rest}
     >
       <BranchPickerPrimitive.Previous asChild>
-        <TooltipIconButton tooltip="Previous">
+        <TooltipIconButton tooltip="Previous" disabled={isCompacting}>
           <ChevronLeftIcon />
         </TooltipIconButton>
       </BranchPickerPrimitive.Previous>
@@ -399,7 +456,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
       <BranchPickerPrimitive.Next asChild>
-        <TooltipIconButton tooltip="Next">
+        <TooltipIconButton tooltip="Next" disabled={isCompacting}>
           <ChevronRightIcon />
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
