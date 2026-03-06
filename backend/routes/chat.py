@@ -1,20 +1,24 @@
-"""Chat run routes with EventStream streaming and automatic tool handling."""
+"""Chat run routes with EventStream streaming powered by LangGraph."""
 
 from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from pydantic import BaseModel, Field
 
-from agent.model import model
-from agent.tools import AVAILABLE_TOOLS
-from lib.thread_store import thread_store
+from agent.graph import get_graph
 
 
 chat_routes = APIRouter()
@@ -26,11 +30,6 @@ class RunRequest(BaseModel):
 
     messages: list[dict[str, Any]]
     run_config: dict[str, Any] = Field(default_factory=dict, alias="runConfig")
-
-
-def _now_iso() -> str:
-    """Return current UTC timestamp as ISO string."""
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _event_line(payload: dict[str, Any]) -> bytes:
@@ -51,6 +50,7 @@ def _extract_text_parts(parts: Any) -> str:
         return parts
     if not isinstance(parts, list):
         return ""
+
     texts: list[str] = []
     for part in parts:
         if isinstance(part, dict) and part.get("type") == "text":
@@ -59,7 +59,7 @@ def _extract_text_parts(parts: Any) -> str:
 
 
 def _append_user_content_block(part: Any, blocks: list[dict[str, Any]]) -> bool:
-    """Append a user part as LangChain standard content blocks and return image flag."""
+    """Append one user content part as LangChain content blocks."""
     if not isinstance(part, dict):
         return False
 
@@ -106,16 +106,16 @@ def _append_user_content_block(part: Any, blocks: list[dict[str, Any]]) -> bool:
                     return False
                 blocks.append({"type": "image", "url": image_data})
                 return True
+
     return False
 
 
 def _to_langchain_user_content_blocks(
     parts: Any, attachments: Any = None
 ) -> tuple[list[dict[str, Any]], bool]:
-    """Convert user content + attachments into LangChain standard content blocks."""
-    part_list: list[Any]
+    """Convert user content and attachments into LangChain content blocks."""
     if isinstance(parts, str):
-        part_list = [{"type": "text", "text": parts}] if parts else []
+        part_list: list[Any] = [{"type": "text", "text": parts}] if parts else []
     elif isinstance(parts, list):
         part_list = parts
     else:
@@ -135,7 +135,9 @@ def _to_langchain_user_content_blocks(
             if not isinstance(attachment_content, list):
                 continue
             for part in attachment_content:
-                has_image = _append_user_content_block(part, content_blocks) or has_image
+                has_image = (
+                    _append_user_content_block(part, content_blocks) or has_image
+                )
 
     return content_blocks, has_image
 
@@ -144,6 +146,7 @@ def _extract_tool_call_parts(parts: Any) -> list[dict[str, Any]]:
     """Extract tool-call parts from assistant message content."""
     if not isinstance(parts, list):
         return []
+
     tool_calls: list[dict[str, Any]] = []
     for part in parts:
         if isinstance(part, dict) and part.get("type") == "tool-call":
@@ -155,6 +158,7 @@ def _extract_tool_result_parts(parts: Any) -> list[dict[str, Any]]:
     """Extract tool-result parts from tool message content."""
     if not isinstance(parts, list):
         return []
+
     tool_results: list[dict[str, Any]] = []
     for part in parts:
         if isinstance(part, dict) and part.get("type") == "tool-result":
@@ -163,7 +167,7 @@ def _extract_tool_result_parts(parts: Any) -> list[dict[str, Any]]:
 
 
 def _extract_chunk_text(content: Any) -> str:
-    """Extract incremental text from AI message chunk content."""
+    """Extract text from AI message or AI message chunk content."""
     if isinstance(content, str):
         return content
     if not isinstance(content, list):
@@ -183,17 +187,35 @@ def _extract_chunk_text(content: Any) -> str:
     return "".join(text_parts)
 
 
-def _find_tool(name: str):
-    """Find a tool instance by name."""
-    for tool in AVAILABLE_TOOLS:
-        if tool.name == name:
-            return tool
-    return None
+def _to_tool_message_content(value: Any) -> str:
+    """Serialize arbitrary tool result values into ToolMessage text content."""
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=True)
+    except TypeError:
+        return str(value)
+
+
+def _parse_tool_message_content(content: Any) -> Any:
+    """Parse ToolMessage content into structured JSON when possible."""
+    if not isinstance(content, str):
+        return content
+
+    stripped = content.strip()
+    if not stripped:
+        return ""
+
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return content
 
 
 def _to_langchain_messages(messages: list[dict[str, Any]]) -> list[BaseMessage]:
-    """Convert assistant-ui thread messages into LangChain message objects."""
+    """Convert assistant-ui thread messages into LangChain messages."""
     converted: list[BaseMessage] = []
+
     for message in messages:
         role = message.get("role")
         content = message.get("content")
@@ -205,19 +227,26 @@ def _to_langchain_messages(messages: list[dict[str, Any]]) -> list[BaseMessage]:
 
         if role == "user":
             user_content_blocks, has_image = _to_langchain_user_content_blocks(
-                content, attachments
+                content,
+                attachments,
             )
             if has_image:
-                converted.append(HumanMessage(content_blocks=user_content_blocks))
+                converted.append(
+                    HumanMessage(
+                        content=cast(
+                            list[str | dict[str, Any]],
+                            user_content_blocks,
+                        )
+                    )
+                )
                 continue
+
             text = "\n".join(
                 str(block.get("text", ""))
                 for block in user_content_blocks
                 if block.get("type") == "text"
             ).strip()
-            converted.append(
-                HumanMessage(content=text)
-            )
+            converted.append(HumanMessage(content=text))
             continue
 
         if role == "assistant":
@@ -236,35 +265,35 @@ def _to_langchain_messages(messages: list[dict[str, Any]]) -> list[BaseMessage]:
 
         if role == "tool":
             for part in _extract_tool_result_parts(content):
+                tool_call_id = str(part.get("toolCallId", "")).strip()
+                if not tool_call_id:
+                    continue
                 converted.append(
                     ToolMessage(
-                        content=json.dumps(part.get("result")),
-                        tool_call_id=str(part.get("toolCallId", "")),
+                        content=_to_tool_message_content(part.get("result")),
+                        tool_call_id=tool_call_id,
+                        status="error" if part.get("isError") else "success",
                     )
                 )
-            continue
 
     return converted
 
 
-def _assistant_text_from_response(response: AIMessage) -> str:
-    """Extract text from AIMessage response."""
-    content = response.content
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        texts = [
-            str(item.get("text", ""))
-            for item in content
-            if isinstance(item, dict) and item.get("type") == "text"
-        ]
-        return "".join(texts)
-    return str(content)
+def _unpack_streamed_message(data: Any) -> tuple[Any, dict[str, Any]]:
+    """Unpack LangGraph `messages` stream mode payload."""
+    if isinstance(data, tuple) and len(data) == 2:
+        message, metadata = data
+        if isinstance(metadata, dict):
+            return message, metadata
+        return message, {}
+    return data, {}
 
 
 @chat_routes.post("/{thread_id}/runs/stream")
 async def run_stream(thread_id: str, payload: RunRequest) -> StreamingResponse:
-    """Run model roundtrip and stream SSE events for LocalRuntime adapter."""
+    """Run LangGraph and stream SSE events for the LocalRuntime adapter."""
+    del thread_id
+
     if not payload.messages:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -272,219 +301,172 @@ async def run_stream(thread_id: str, payload: RunRequest) -> StreamingResponse:
         )
 
     run_id = str(uuid.uuid4())
-    thread_store.ensure_document(thread_id)
-
+    graph = get_graph()
     langchain_messages = _to_langchain_messages(payload.messages)
-    model_with_tools = model.bind_tools(AVAILABLE_TOOLS)
 
     async def event_stream():
         try:
-            current_messages = [*langchain_messages]
-            assistant_content: list[dict[str, Any]] = []
-            tool_part_indexes: dict[str, int] = {}
-            round_index = 0
+            tool_chunk_states: dict[tuple[int, int], dict[str, Any]] = {}
+            text_streamed_steps: set[int] = set()
 
-            while True:
-                accumulated_text = ""
-                tool_states: dict[int, dict[str, Any]] = {}
+            async for stream_item in graph.astream(
+                {"messages": langchain_messages},
+                stream_mode=["messages", "updates"],
+            ):
+                if not isinstance(stream_item, tuple) or len(stream_item) != 2:
+                    continue
 
-                async for chunk in model_with_tools.astream(current_messages):
-                    delta = _extract_chunk_text(getattr(chunk, "content", ""))
-                    if delta:
-                        accumulated_text += delta
-                        if (
-                            assistant_content
-                            and assistant_content[-1].get("type") == "text"
-                        ):
-                            assistant_content[-1]["text"] = (
-                                str(assistant_content[-1].get("text", "")) + delta
-                            )
-                        else:
-                            assistant_content.append({"type": "text", "text": delta})
-                        yield _event_line({"type": "text_delta", "delta": delta})
+                stream_mode, data = stream_item
 
-                    tool_call_chunks = getattr(chunk, "tool_call_chunks", None) or []
-                    for raw_chunk in tool_call_chunks:
-                        raw_index = _chunk_field(raw_chunk, "index", 0)
-                        try:
-                            tool_index = int(raw_index)
-                        except (TypeError, ValueError):
-                            tool_index = 0
+                if stream_mode == "messages":
+                    message, metadata = _unpack_streamed_message(data)
+                    raw_step = metadata.get("langgraph_step", 0)
+                    try:
+                        step = int(raw_step)
+                    except (TypeError, ValueError):
+                        step = 0
 
-                        tool_state = tool_states.get(tool_index)
-                        if tool_state is None:
-                            tool_state = {
-                                "toolCallId": f"{run_id}:r{round_index}:t{tool_index}",
-                                "toolName": "",
-                                "args": {},
-                                "argsText": "",
-                            }
-                            tool_states[tool_index] = tool_state
+                    if isinstance(message, AIMessageChunk):
+                        delta = _extract_chunk_text(message.content)
+                        if delta:
+                            text_streamed_steps.add(step)
+                            yield _event_line({"type": "text_delta", "delta": delta})
 
-                        name_piece = _chunk_field(raw_chunk, "name", "")
-                        if isinstance(name_piece, str) and name_piece:
-                            tool_state["toolName"] = name_piece
-
-                        args_piece = _chunk_field(raw_chunk, "args", "")
-                        if args_piece:
-                            tool_state["argsText"] += str(args_piece)
-
-                        try:
-                            parsed_args = (
-                                json.loads(tool_state["argsText"])
-                                if tool_state["argsText"].strip()
-                                else {}
-                            )
-                            if isinstance(parsed_args, dict):
-                                tool_state["args"] = parsed_args
-                        except json.JSONDecodeError:
-                            pass
-
-                        next_tool_part = {
-                            "type": "tool-call",
-                            "toolCallId": tool_state["toolCallId"],
-                            "toolName": tool_state["toolName"] or f"tool_{tool_index}",
-                            "args": tool_state["args"],
-                            "argsText": tool_state["argsText"],
-                        }
-                        existing_index = tool_part_indexes.get(tool_state["toolCallId"])
-                        if existing_index is None:
-                            tool_part_indexes[tool_state["toolCallId"]] = len(
-                                assistant_content
-                            )
-                            assistant_content.append(next_tool_part)
-                        else:
-                            assistant_content[existing_index] = {
-                                **assistant_content[existing_index],
-                                **next_tool_part,
-                            }
-
-                        yield _event_line(
-                            {
-                                "type": "tool_call",
-                                "toolCallId": tool_state["toolCallId"],
-                                "toolName": tool_state["toolName"]
-                                or f"tool_{tool_index}",
-                                "args": tool_state["args"],
-                                "argsText": tool_state["argsText"],
-                            }
+                        tool_call_chunks = (
+                            getattr(message, "tool_call_chunks", None) or []
                         )
+                        for raw_chunk in tool_call_chunks:
+                            raw_index = _chunk_field(raw_chunk, "index", 0)
+                            try:
+                                tool_index = int(raw_index)
+                            except (TypeError, ValueError):
+                                tool_index = 0
 
-                if not tool_states:
-                    break
+                            chunk_key = (step, tool_index)
+                            tool_state = tool_chunk_states.get(chunk_key)
+                            if tool_state is None:
+                                tool_state = {
+                                    "toolCallId": (f"{run_id}:s{step}:t{tool_index}"),
+                                    "toolName": "",
+                                    "args": {},
+                                    "argsText": "",
+                                }
+                                tool_chunk_states[chunk_key] = tool_state
 
-                ai_tool_calls: list[dict[str, Any]] = []
-                tool_messages: list[ToolMessage] = []
-                for tool_index in sorted(tool_states):
-                    tool_state = tool_states[tool_index]
-                    tool_name = tool_state["toolName"] or f"tool_{tool_index}"
-                    tool_call_id = tool_state["toolCallId"]
-                    args = tool_state["args"]
+                            chunk_call_id = _chunk_field(raw_chunk, "id", "")
+                            if isinstance(chunk_call_id, str) and chunk_call_id:
+                                tool_state["toolCallId"] = chunk_call_id
 
-                    tool = _find_tool(tool_name)
-                    is_error = False
-                    if tool is None:
-                        result: Any = {
-                            "status": "error",
-                            "error": f"Tool '{tool_name}' not found",
-                        }
-                        is_error = True
-                    else:
-                        try:
-                            result = tool.invoke(args)
-                        except Exception as exc:  # noqa: BLE001
-                            result = {"status": "error", "error": str(exc)}
-                            is_error = True
+                            name_piece = _chunk_field(raw_chunk, "name", "")
+                            if isinstance(name_piece, str) and name_piece:
+                                tool_state["toolName"] = name_piece
 
-                    tool_part = {
-                        "type": "tool-call",
-                        "toolCallId": tool_call_id,
-                        "toolName": tool_name,
-                        "args": args,
-                        "argsText": tool_state["argsText"],
-                        "result": result,
-                        "isError": is_error,
-                    }
-                    existing_index = tool_part_indexes.get(tool_call_id)
-                    if existing_index is None:
-                        tool_part_indexes[tool_call_id] = len(assistant_content)
-                        assistant_content.append(tool_part)
-                    else:
-                        assistant_content[existing_index] = {
-                            **assistant_content[existing_index],
-                            **tool_part,
-                        }
-                    thread_store.upsert_tool_call(
-                        thread_id,
-                        {
-                            "id": tool_call_id,
-                            "run_id": run_id,
-                            "tool_name": tool_name,
-                            "args": args,
-                            "edited_args": None,
-                            "decision": "auto",
-                            "status": "failed" if is_error else "completed",
-                            "created_at": _now_iso(),
-                            "resolved_at": _now_iso(),
-                        },
-                    )
-                    yield _event_line(
-                        {
-                            "type": "tool_result",
-                            "toolCallId": tool_call_id,
-                            "result": result,
-                            "isError": is_error,
-                        }
-                    )
+                            args_piece = _chunk_field(raw_chunk, "args", "")
+                            if args_piece:
+                                tool_state["argsText"] += str(args_piece)
+                                try:
+                                    parsed_args = (
+                                        json.loads(tool_state["argsText"])
+                                        if tool_state["argsText"].strip()
+                                        else {}
+                                    )
+                                    if isinstance(parsed_args, dict):
+                                        tool_state["args"] = parsed_args
+                                except json.JSONDecodeError:
+                                    pass
 
-                    ai_tool_calls.append(
-                        {"id": tool_call_id, "name": tool_name, "args": args}
-                    )
-                    tool_messages.append(
-                        ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)
-                    )
+                            yield _event_line(
+                                {
+                                    "type": "tool_call",
+                                    "toolCallId": tool_state["toolCallId"],
+                                    "toolName": tool_state["toolName"]
+                                    or f"tool_{tool_index}",
+                                    "args": tool_state["args"],
+                                    "argsText": tool_state["argsText"],
+                                }
+                            )
+                        continue
 
-                current_messages.append(
-                    AIMessage(content=accumulated_text, tool_calls=ai_tool_calls)
-                )
-                current_messages.extend(tool_messages)
-                round_index += 1
+                    if isinstance(message, AIMessage):
+                        if step not in text_streamed_steps:
+                            delta = _extract_chunk_text(message.content)
+                            if delta:
+                                yield _event_line(
+                                    {"type": "text_delta", "delta": delta}
+                                )
 
-            if not assistant_content:
-                assistant_content = [{"type": "text", "text": ""}]
+                        for index, tool_call in enumerate(message.tool_calls):
+                            tool_call_id = str(
+                                tool_call.get("id") or f"{run_id}:s{step}:t{index}"
+                            )
+                            tool_name = str(tool_call.get("name") or f"tool_{index}")
+                            args = tool_call.get("args", {})
+                            if not isinstance(args, dict):
+                                args = {}
 
-            assistant_message = {
-                "id": f"assistant-{uuid.uuid4()}",
-                "role": "assistant",
-                "content": assistant_content,
-                "status": {"type": "complete", "reason": "stop"},
-                "metadata": {"custom": {}},
-                "createdAt": _now_iso(),
-            }
-            persisted_messages = [*payload.messages, assistant_message]
-            thread_store.replace_messages(thread_id, persisted_messages)
-            thread_store.append_run(
-                thread_id,
-                {
-                    "id": run_id,
-                    "status": "complete",
-                    "created_at": _now_iso(),
-                    "completed_at": _now_iso(),
-                    "error": None,
-                },
-            )
+                            yield _event_line(
+                                {
+                                    "type": "tool_call",
+                                    "toolCallId": tool_call_id,
+                                    "toolName": tool_name,
+                                    "args": args,
+                                    "argsText": json.dumps(args, ensure_ascii=True),
+                                }
+                            )
+                        continue
+
+                if stream_mode == "updates" and isinstance(data, dict):
+                    for node_update in data.values():
+                        if not isinstance(node_update, dict):
+                            continue
+
+                        raw_messages = node_update.get("messages")
+                        if not isinstance(raw_messages, list):
+                            continue
+
+                        for raw_message in raw_messages:
+                            tool_call_id = ""
+                            result: Any = None
+                            is_error = False
+
+                            if isinstance(raw_message, ToolMessage):
+                                tool_call_id = str(raw_message.tool_call_id).strip()
+                                result = _parse_tool_message_content(
+                                    raw_message.content
+                                )
+                                is_error = raw_message.status == "error"
+                            elif isinstance(raw_message, dict):
+                                raw_type = str(raw_message.get("type", "")).strip()
+                                if raw_type != "tool":
+                                    continue
+                                tool_call_id = str(
+                                    raw_message.get("tool_call_id")
+                                    or raw_message.get("toolCallId")
+                                    or ""
+                                ).strip()
+                                result = _parse_tool_message_content(
+                                    raw_message.get("content")
+                                )
+                                is_error = (
+                                    str(raw_message.get("status", "success")) == "error"
+                                )
+                            else:
+                                continue
+
+                            if not tool_call_id:
+                                continue
+
+                            yield _event_line(
+                                {
+                                    "type": "tool_result",
+                                    "toolCallId": tool_call_id,
+                                    "result": result,
+                                    "isError": is_error,
+                                }
+                            )
+
             yield _event_line({"type": "done", "status": "complete"})
         except Exception as exc:  # noqa: BLE001
-            thread_store.append_run(
-                thread_id,
-                {
-                    "id": run_id,
-                    "status": "failed",
-                    "created_at": _now_iso(),
-                    "completed_at": _now_iso(),
-                    "error": str(exc),
-                },
-            )
             yield _event_line({"type": "error", "message": str(exc)})
 
     return StreamingResponse(
